@@ -1,0 +1,795 @@
+---
+title: "P337: Differential expression analysis"
+subtitle: "Bronchial lavage (BAL) pre/post allergen challenge"
+author: "Kim Dill-McFarland, kadm@uw.edu"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 4
+    toc_float:
+      collapsed: no
+date: "version `r format(Sys.time(), '%B %d, %Y')`"
+editor_options: 
+  chunk_output_type: console
+---
+
+# Background
+
+The purpose of this workflow is to identify differentially expressed (DE) genes and modules in BAL.
+
+# Setup
+Load packages
+
+```{r message=FALSE, warning=FALSE}
+# Data manipulation and figures
+library(tidyverse)
+    # Multi-panel figures for ggplot
+    library(cowplot)
+
+#Define ggplot colors
+logFC.cols <- c("Down, FDR < 0.5"="lightblue",
+                "Down, FDR < 0.2"="blue",
+                "Down, FDR < 0.05"="darkblue",
+                "Down, FDR < 0.01"="blue",
+                "Down, FDR < 0.001"="lightblue",
+                "NS"="grey",
+                "Up, FDR < 0.5"="pink",
+                "Up, FDR < 0.2"="red",
+                "Up, FDR < 0.05"="darkred",
+                "Up, FDR < 0.01"="red",
+                "Up, FDR < 0.001"="pink")
+#Venn diagrams
+library(venn)
+# Empirical analysis of digital gene exssion data
+library(edgeR)
+#Construct networks to ID modules
+library(WGCNA)
+# Print tty table to knit file
+library(knitr)
+library(kableExtra)
+options(knitr.kable.NA = '')
+```
+
+Set seed
+
+```{r}
+set.seed(4389)
+```
+
+Scripts
+
+```{r}
+#Extract pvalues from limma output
+source("https://raw.githubusercontent.com/kdillmcfarland/R_bioinformatic_scripts/master/limma.extract.pval.R")
+#Module building function
+source("https://raw.githubusercontent.com/kdillmcfarland/R_bioinformatic_scripts/master/RNAseq_module_fxn.R")
+#Gene expression boxplot function
+source("https://raw.githubusercontent.com/kdillmcfarland/R_bioinformatic_scripts/master/RNAseq_boxplot_fxn.R")
+#Reverse %in%
+`%notin%` <- Negate(`%in%`)
+```
+
+# Load data
+
+```{r}
+#Load data
+load("data_clean/P337_BAL_data.RData")
+```
+
+This includes in the following samples.
+
+```{r echo=FALSE}
+dat.BAL.abund.norm.voom$targets %>% 
+  count(visit) %>% 
+  
+  kable(align="c", caption="Total donors") %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+```
+
+# PCA (genes)
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, fig.height=4}
+# Calculate PCA
+PCA <- as.data.frame(dat.BAL.abund.norm.voom$E) %>% 
+  t() %>% 
+  prcomp()
+
+PC1.label <- paste("PC1 (", summary(PCA)$importance[2,1]*100, "%)", sep="")
+PC2.label <-paste("PC2 (", summary(PCA)$importance[2,2]*100, "%)", sep="")
+
+# Extract PC values
+PCA.dat <- as.data.frame(PCA$x) %>% 
+  rownames_to_column("libID") %>%
+  # Select PCs
+  dplyr::select(libID, PC1:PC3) %>% 
+  # Merge with metadata
+  left_join(dat.BAL.abund.norm.voom$targets, by="libID")
+
+PCA <- ggplot(PCA.dat, aes(PC1, PC2)) +
+      geom_point(aes(color=visit),
+                      size=3) +
+      #Beautify
+      theme_classic() +
+      labs(x=PC1.label, y=PC2.label, 
+           title="BAL\nvoom normalized abundant logCPM") +
+      coord_fixed(ratio=1) +
+      guides(color=guide_legend(title.position="top", 
+                                title.hjust = 0.5))
+
+
+PCA2 <- ggplot(PCA.dat, aes(PC1, PC2, color=donorID)) +
+      geom_point(size=3) +
+      #Beautify
+      theme_classic() +
+      labs(x=PC1.label, y=PC2.label, 
+           title="BAL\nvoom normalized abundant logCPM") +
+      coord_fixed(ratio=1)
+
+PCA
+PCA2
+
+dir.create("figs/", showWarnings = FALSE)
+ggsave("figs/PCA_P337_BAL_genes.png", 
+       plot_grid(PCA, PCA2, align = "hv", ncol=1),
+       height=7, width=5)
+```
+
+# Define significant genes
+## Linear model: visit
+
+```{r}
+# Define model
+model.visit <- model.matrix(~ visit, data=dat.BAL.abund.norm.voom$targets)
+  colnames(model.visit) <- c("(Intercept)", "visit")
+  
+#block by donor
+consensus.corr <- duplicateCorrelation(
+                    dat.BAL.abund.norm.voom$E,
+                    model.visit,
+  block=dat.BAL.abund.norm.voom$targets$donorID)$consensus.correlation
+  
+consensus.corr
+  
+# Fit model to transformed count data. Calculate eBayes
+efitQW <- eBayes(
+            lmFit(dat.BAL.abund.norm.voom$E, model.visit,
+                  block=dat.BAL.abund.norm.voom$targets$donorID,
+                  correlation=consensus.corr))
+```
+
+```{r warning=FALSE, message=FALSE}
+#Extract p-values from results
+extract.pval(model=model.visit,
+             voom.dat=dat.BAL.abund.norm.voom$E, 
+             eFit=efitQW, 
+             name="P337_BAL_gene_visit",
+             summary=TRUE,
+             contrasts=FALSE,
+             FC.group = TRUE)
+
+#Write to disk
+dir.create(path="results/gene_level/", 
+           showWarnings = FALSE, recursive = TRUE)
+write_csv(P337_BAL_gene_visit, 
+          file = "results/gene_level/P337_BAL_gene_visit.csv")
+```
+
+### Summarize gene model
+
+```{r echo=FALSE}
+P337_BAL_gene_visit.summ %>% 
+  filter(group != "total (nonredundant)") %>% 
+
+  kable(align=c("l","l","c","c","c","c","c","c"),
+        col.names = c("Variable", "Fold change",
+                      "0.05", "0.1", "0.2","0.3","0.4","0.5")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE) %>% 
+  add_header_above(c(" "=2, "Genes with FDR <"=6))
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=9}
+P337_BAL_gene_visit %>%  
+  filter(group != "(Intercept)") %>% 
+  mutate(col.group = ifelse(adj.P.Val <= 0.05 & FC.group=="up", 
+                            "Up, FDR < 0.05",
+                     ifelse(adj.P.Val <= 0.05 & FC.group=="down", 
+                            "Down, FDR < 0.05",
+                     ifelse(adj.P.Val <= 0.2 & FC.group=="up", 
+                            "Up, FDR < 0.2",
+                     ifelse(adj.P.Val <= 0.2 & FC.group=="down", 
+                            "Down, FDR < 0.2",
+                     ifelse(adj.P.Val <= 0.5 & FC.group=="up", 
+                            "Up, FDR < 0.5",
+                     ifelse(adj.P.Val <= 0.5 & FC.group=="down", 
+                            "Down, FDR < 0.5",
+                            "NS"))))))) %>%
+  arrange(group,-adj.P.Val) %>% 
+  
+ggplot(aes(x=AveExpr, y=logFC, color=col.group)) +
+  geom_point(size=2) +
+  scale_color_manual(values=logFC.cols) +
+  facet_grid(~group, scales = "free_y")+
+  theme_classic() +
+  labs(x="Average log CPM", y="Log fold change", color="") +
+  guides(color = guide_legend(reverse = TRUE)) +
+  theme(text = element_text(size=18),
+        legend.position = "bottom") +
+  guides(color=guide_legend(nrow=3, byrow=TRUE))
+```
+
+### Select visit significant genes
+
+```{r}
+#Maximum fdr for visit genes to be included in modules
+visit.fdr.cutoff <- 0.3
+```
+
+```{r}
+#Subset data to visit signif genes
+##List genes
+visit.signif <- P337_BAL_gene_visit %>% 
+  filter(adj.P.Val <= visit.fdr.cutoff & group == "visit") %>% 
+  select(geneName) %>% unlist(use.names = FALSE)
+  
+##Subset expression data
+dat.BAL.abund.norm.voom.visit <- dat.BAL.abund.norm.voom
+
+dat.BAL.abund.norm.voom.visit$E <- as.data.frame(dat.BAL.abund.norm.voom.visit$E) %>% 
+  rownames_to_column() %>% 
+  filter(rowname %in% visit.signif) %>% 
+  column_to_rownames()
+
+dat.BAL.abund.norm.voom.visit$genes <- as.data.frame(dat.BAL.abund.norm.voom.visit$genes) %>% 
+  filter(geneName %in% visit.signif)
+```
+
+## Linear model: Cell percentages
+
+Each sample contains eosinophil (EOS), epithelial (Epi), lymphocyte (LYM), monocyte (MONO), and polymorphonuclear leukocyte (PMN) cells to 100%. 
+
+```{r echo=FALSE}
+#Plot cell percentages per sample
+dat.BAL.abund.norm.voom$targets %>% 
+  select(donorID, visit, EOS.pct:Epi.pct) %>% 
+  pivot_longer(-c(donorID:visit)) %>% 
+  
+  ggplot(aes(x=name, y=value)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(height = 0) +
+  theme_classic() +
+  facet_wrap(~visit, scales="free") +
+  labs(x="", y="Percent of total cells")
+```
+
+Here, we create targeted modules for EOS and PMN cells.
+
+#### EOS
+
+```{r}
+# Define model
+model <- model.matrix(~EOS.pct, data=dat.BAL.abund.norm.voom.visit$targets)
+  colnames(model) <- c("(Intercept)", "EOS.pct")
+  
+#Block by donor
+consensus.corr <- duplicateCorrelation(
+                    dat.BAL.abund.norm.voom.visit$E,
+                    model,
+  block=dat.BAL.abund.norm.voom.visit$targets$donorID)$consensus.correlation
+  
+consensus.corr
+  
+# Fit model to transformed count data. Calculate eBayes
+efitQW <- eBayes(
+            lmFit(dat.BAL.abund.norm.voom.visit$E, model,
+                  block=dat.BAL.abund.norm.voom.visit$targets$donorID,
+                  correlation=consensus.corr))
+```
+
+```{r warning=FALSE, message=FALSE}
+#Extract p-values from results
+extract.pval(model=model,
+             voom.dat=dat.BAL.abund.norm.voom.visit$E, 
+             eFit=efitQW, 
+             name="P337_BAL_gene_EOS",
+             summary=TRUE,
+             contrasts=FALSE,
+             FC.group = TRUE)
+
+#Write to disk
+write_csv(P337_BAL_gene_EOS,
+          file = "results/gene_level/P337_BAL_gene_EOS.csv")
+```
+
+#### PMN
+
+```{r}
+# Define model
+model <- model.matrix(~PMN.pct, data=dat.BAL.abund.norm.voom.visit$targets)
+  colnames(model) <- c("(Intercept)", "PMN.pct")
+  
+#Block by donor
+consensus.corr <- duplicateCorrelation(
+                    dat.BAL.abund.norm.voom.visit$E,
+                    model,
+  block=dat.BAL.abund.norm.voom.visit$targets$donorID)$consensus.correlation
+  
+consensus.corr
+  
+# Fit model to transformed count data. Calculate eBayes
+efitQW <- eBayes(
+            lmFit(dat.BAL.abund.norm.voom.visit$E, model,
+                  block=dat.BAL.abund.norm.voom.visit$targets$donorID,
+                  correlation=consensus.corr))
+
+```
+
+```{r warning=FALSE, message=FALSE}
+#Extract p-values from results
+extract.pval(model=model,
+             voom.dat=dat.BAL.abund.norm.voom.visit$E, 
+             eFit=efitQW, 
+             name="P337_BAL_gene_PMN",
+             summary=TRUE,
+             contrasts=FALSE,
+             FC.group = TRUE)
+
+#Write to disk
+write_csv(P337_BAL_gene_PMN,
+          file = "results/gene_level/P337_BAL_gene_PMN.csv")
+```
+
+### Summarize cell percentage models
+
+```{r echo=FALSE, warning=FALSE}
+#Combine cell pct results
+P337_gene_cells <- data.frame()
+
+for(pval in ls(pattern = "[EOS|PMN]$")){
+  pval.temp <- get(pval)
+  P337_gene_cells <- bind_rows(P337_gene_cells, pval.temp)
+}
+
+P337_gene_cells.summ <- data.frame()
+
+for(summary in ls(pattern = "[EOS|PMN].summ")){
+  summ.temp <- get(summary) %>% 
+    filter(group != "total (nonredundant)")
+  P337_gene_cells.summ <- bind_rows(P337_gene_cells.summ, summ.temp)
+}
+```
+
+```{r echo=FALSE}
+P337_gene_cells.summ %>% 
+  filter(FC.group == "up" & group != "visit") %>% 
+  
+  kable(align=c("l","l","c","c","c","c","c","c"),
+        col.names = c("Variable", "Fold change",
+                      "0.05", "0.1", "0.2","0.3","0.4","0.5")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE) %>% 
+  add_header_above(c(" "=2, "Genes with FDR <"=6))
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=9}
+P337_gene_cells %>%  
+  filter(group %notin% c("visit","(Intercept)") ) %>% 
+  mutate(col.group = ifelse(adj.P.Val <= 0.05 & FC.group=="up", 
+                            "Up, FDR < 0.05",
+                     ifelse(adj.P.Val <= 0.05 & FC.group=="down", 
+                            "Down, FDR < 0.05",
+                     ifelse(adj.P.Val <= 0.2 & FC.group=="up", 
+                            "Up, FDR < 0.2",
+                     ifelse(adj.P.Val <= 0.2 & FC.group=="down", 
+                            "Down, FDR < 0.2",
+                     ifelse(adj.P.Val <= 0.5 & FC.group=="up", 
+                            "Up, FDR < 0.5",
+                     ifelse(adj.P.Val <= 0.5 & FC.group=="down", 
+                            "Down, FDR < 0.5",
+                            "NS"))))))) %>%
+  arrange(group,-adj.P.Val) %>% 
+  
+ggplot(aes(x=AveExpr, y=logFC, color=col.group)) +
+  geom_point(size=2) +
+  scale_color_manual(values=logFC.cols) +
+  facet_grid(~group, scales = "free_y")+
+  theme_classic() +
+  labs(x="Average log CPM", y="Log fold change", color="") +
+  guides(color = guide_legend(reverse = TRUE)) +
+  theme(text = element_text(size=18),
+        legend.position = "bottom") +
+  guides(color=guide_legend(nrow=3, byrow=TRUE))
+```
+
+### Determine cell model FDR cutoff
+
+```{r echo=FALSE, fig.height=6, fig.width=8.5}
+#Define FDR cutoffs to assess
+fdr.cutoff <- c(0.2,0.3,0.4)
+#List cell types to plot
+cell.types <- c("EOS.pct","PMN.pct")
+
+par(mfrow = c(1, 3))
+
+for(fdr in fdr.cutoff){
+  #Blank list for cell type results
+  cell.list <- list()
+  #Cell type results
+    for(cell in cell.types){
+        temp2 <- filter(P337_gene_cells, 
+              group == cell & adj.P.Val <= fdr & 
+                FC.group == "up")$geneName
+        cell.list[[cell]] <- temp2
+    }
+  
+  venn(ilab=FALSE, zcolor = "style",ilcs=1,sncs=1.5,
+     snames=cell.types,
+     x=cell.list)
+  
+  title(sub=paste("cell FC = up, FDR < ", fdr, sep=""),
+        line = -1, cex.sub=1.5)
+}
+```
+
+```{r echo=FALSE}
+#List venn values
+data.frame(
+  group = c("fdr<0.2", "fdr<0.3", "fdr<0.4"),
+  assign = c(sum(2492,11,150),
+             sum(2390,31,397),
+             sum(2147,60,746)),
+  assign.1 = c(sum(2492,11),
+               sum(2390,31),
+               sum(2147,60)),
+  assign.2 = c(sum(150),
+               sum(397),
+               sum(746))) %>% 
+
+  
+  group_by(group) %>% 
+  #Calculate genes not assigned
+  mutate(unassign = nrow(dat.BAL.abund.norm.voom$E) - assign) %>% 
+  #Calculate visit signif genes not assigned
+  mutate(unassign2 = length(visit.signif) - assign) %>% 
+  #Convert to %
+  mutate_at(vars(assign,unassign), 
+            .funs = list(pct = ~./nrow(dat.BAL.abund.norm.voom$E)*100)) %>% 
+  mutate_at(vars(assign,unassign2), 
+            .funs = list(pct2 = ~./length(visit.signif)*100)) %>% 
+  mutate_at(vars(assign.1,assign.2),
+            .funs = list(pct = ~./assign*100)) %>% 
+  #Keep vars of interest
+  select(group, assign, assign_pct, unassign_pct,
+         assign_pct2, unassign2_pct2,
+         assign.1_pct,assign.2_pct) %>% 
+  
+  
+  kable(align="c", col.names = c("","Assigned",
+        "Assigned","Unassigned","Assigned","Unassigned",
+        "1 type","2 types"), digits=2) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE) %>% 
+  add_header_above(c(" ", "Total genes",
+                "% all genes \nN = 14,346"=2, 
+                "% visit genes \nN = 6,863"=2, 
+                "% assigned genes \nthat are assigned to"=2)) %>% 
+  column_spec (c(2,4,6), border_right = TRUE) 
+```
+
+Increasing the FDR cutoff assigns more genes to cell types but increases multi-type assigned genes by ~10%. To remain consistent with visit genes selection, an FDR of 0.3 will be used to assign genes to cell types.
+
+### Select cell specific genes
+
+```{r}
+for(cell in c("EOS.pct","PMN.pct")){
+  #List significant genes
+  genes.signif.cell <- P337_gene_cells %>% 
+    filter(group == cell & FC.group == "up" & adj.P.Val <= visit.fdr.cutoff) %>% 
+    distinct(geneName) %>% unlist(use.names = FALSE)
+  
+  #Save to global environment
+  name <- paste("genes.signif", cell, sep="_")
+  assign(name, genes.signif.cell)
+}
+```
+
+# Gene expression modules
+
+```{r}
+#Create results dirs
+dir.create("results/module_level", showWarnings = FALSE)
+dir.create("figs/module_level", showWarnings = FALSE)
+```
+
+## Make modules
+
+The standard R-squared soft thresholding minimum of 0.8 was used for all module building. Note that R-squared did not follow a normal trend for LYM. Thus, LYM modules may be unstable.
+
+```{r results=FALSE, message=FALSE, warning=FALSE}
+mod.param <- data.frame()
+
+for(cell in c("EOS.pct","PMN.pct")){
+  #Set parameters
+  deepSplit <- 2
+  minModuleSize <- 50
+  
+  #Get data names
+  genes.name <- paste("genes.signif", cell, sep="_")
+  output.name <- paste("P337_BAL", cell, sep="_")
+  
+  #Make modules
+  make.modules(voom.dat = dat.BAL.abund.norm.voom,
+             genes.signif = get(genes.name),
+             Rsq.min = 0.8,
+             minModuleSize = minModuleSize,
+             deepSplit = deepSplit,
+             nThread = 4,
+             basename = output.name,
+             outdir="module_level")
+
+  #Save parameters
+  mod.param.temp <- data.frame(group = cell,
+                               tot.genes = length(get(genes.name)),
+                               power = sft.select$Power,
+                               SFT.R.sq = sft.select$SFT.R.sq,
+                               mean.k = sft.select$mean.k)
+    
+  mod.param <- bind_rows(mod.param, mod.param.temp)
+}
+```
+
+## Summarize modules
+
+```{r message=FALSE}
+#Load results
+##list all gene list files
+mod.result.files <- list.files(path = "results/module_level/",
+                  pattern = "genes_in_mod.csv",
+                  full.names = TRUE, recursive = TRUE)
+## list all count files
+voom.result.files <- list.files(path = "results/module_level/",
+                  pattern = "mod_voom_counts.csv",
+                  full.names = TRUE, recursive = TRUE)
+
+##Read in and merge all files
+mod.genes <- data.frame()
+for(file in mod.result.files[1:2]){
+  temp <- read_csv(file) %>% 
+    #format module name to match voom data
+    mutate(module = gsub("results/module_level//", "", dirname(file)),
+           module = gsub("_deepSplit[0-9]_minMod[0-9]{1,2}", "", module),
+           module = paste(module, module.char, sep="_"))
+           
+  mod.genes <- bind_rows(mod.genes, temp)
+}
+
+mod.voom <- data.frame()
+for(file in voom.result.files[1:2]){
+  temp <- read_csv(file)
+  
+  mod.voom <- bind_rows(mod.voom, temp) %>% 
+    select(-module.char)
+}
+
+#Save all module data
+save(mod.voom, mod.genes, file="data_clean/P337_BAL_module_data.RData")
+```
+
+```{r echo=FALSE}
+mod.summ <- mod.genes %>% 
+  count(module) %>% 
+  separate(module, into=c("a","b","c","group","module"), sep = "_") %>% 
+  mutate(mod.group = ifelse(module == "00", "mod_00", "genes")) %>% 
+  group_by(group, mod.group) %>% 
+  summarise(tot.genes = sum(n)) %>% 
+  pivot_wider(names_from = mod.group, values_from = tot.genes)
+
+mod.genes %>% 
+  separate(module, into=c("a","b","c","group","e"), sep = "_") %>% 
+  group_by(group) %>% 
+  summarise(tot.mods = max(as.numeric(module.char))) %>% 
+  full_join(mod.param, by="group") %>% 
+  full_join(mod.summ, by="group") %>% 
+  select(group, tot.mods, genes, mod_00, power:mean.k) %>% 
+
+kable(align="c", col.names = c("Cell type","Modules", "Genes in modules",
+                               "Remaining genes in module 00",
+                               "Sft threshold power", "R-squared", 
+                               "Mean connectivity")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+```
+
+```{r echo=FALSE}
+mod.genes %>% 
+  count(module) %>% 
+  separate(module, into=c("a","b","c","group","module"), sep = "_") %>% 
+  pivot_wider(names_from = group, values_from = n) %>% 
+  select(-c(a:c)) %>% 
+  
+#Number of genes in each module
+kable(align="c") %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE) %>% 
+  add_header_above(c("", "Genes in module"=2))
+```
+
+## PCA (modules)
+
+All module data.
+
+```{r echo=FALSE}
+PCA.mod <- mod.voom %>% 
+     #Remove mod0
+    filter(!grepl("00", module)) %>% 
+    column_to_rownames("module") %>% 
+  t() %>% prcomp()
+  
+#Make labels
+PC1.label <- paste("PC1 (",
+                     summary(PCA.mod)$importance[2,1]*100,
+                     "%)", sep="")
+PC2.label <-paste("PC2 (",
+                  summary(PCA.mod)$importance[2,2]*100, "%)",
+                  sep="")
+# Extract PC values
+PCA.dat <- as.data.frame(PCA.mod$x) %>% 
+  rownames_to_column("libID") %>%
+  # Select PCs
+  dplyr::select(libID, PC1:PC3) %>% 
+  # Merge with metadata
+  left_join(dat.BAL.abund.norm.voom$targets, by="libID")
+
+PCA <- ggplot(PCA.dat, aes(PC1, PC2)) +
+      geom_point(aes(color=visit),
+                      size=3) +
+      #Beautify
+      theme_classic() +
+      labs(x=PC1.label, y=PC2.label, 
+           title="BAL module\nvoom normalized abundant logCPM") +
+      coord_fixed(ratio=1) +
+      guides(color=guide_legend(title.position="top", 
+                                title.hjust = 0.5))
+
+
+PCA2 <- ggplot(PCA.dat, aes(PC1, PC2, color=donorID)) +
+      geom_point(size=3) +
+      #Beautify
+      theme_classic() +
+      labs(x=PC1.label, y=PC2.label, 
+           title="BAL module\nvoom normalized abundant logCPM") +
+      coord_fixed(ratio=1)
+
+PCA
+PCA2
+
+ggsave("figs/PCA_P337_BAL_modules.png", 
+       plot_grid(PCA, PCA2, align = "hv", ncol=1),
+       height=7, width=5)
+```
+
+## Linear model: visit
+
+```{r}
+#Check library order
+identical(dat.BAL.abund.norm.voom$targets$libID, colnames(mod.voom)[-1])
+# Thus, the orig gene level model can be used
+
+# Remove module 00
+mod.voom.format <- mod.voom %>% 
+  filter(!grepl("00", module)) %>% 
+  column_to_rownames("module")
+
+#Block by donor
+consensus.corr <- duplicateCorrelation(
+                    mod.voom.format, model.visit,
+  block=dat.BAL.abund.norm.voom$targets$donorID)$consensus.correlation
+  
+consensus.corr
+  
+# Fit model to transformed count data. Calculate eBayes
+efitQW.mods <- eBayes(
+            lmFit(mod.voom.format, model.visit,
+                  block=dat.BAL.abund.norm.voom$targets$donorID,
+                  correlation=consensus.corr))
+
+```
+
+```{r warning=FALSE, message=FALSE}
+#Extract p-values from results
+extract.pval(model=model.visit,
+             voom.dat=mod.voom.format, 
+             eFit=efitQW.mods, 
+             name="P337_BAL_module_visit",
+             summary=TRUE,
+             contrasts=FALSE,
+             FC.group = TRUE)
+```
+
+### Summarize module model
+
+```{r echo=FALSE}
+P337_BAL_module_visit.summ %>% 
+  filter(group != "total (nonredundant)") %>% 
+  
+  kable(align=c("l","l","c","c","c","c","c","c"),
+    col.names = c("Variable", "Fold change", "0.05","0.1","0.2","0.3","0.4","0.5")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE) %>% 
+  add_header_above(c(" "=2, "Modules with FDR <"=6))
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=9}
+P337_BAL_module_visit %>%  
+  filter(group != "(Intercept)") %>% 
+  mutate(col.group = ifelse(adj.P.Val <= 0.001 & FC.group=="up", 
+                            "Up, FDR < 0.001",
+                     ifelse(adj.P.Val <= 0.001 & FC.group=="down", 
+                            "Down, FDR < 0.001",
+                     ifelse(adj.P.Val <= 0.01 & FC.group=="up", 
+                            "Up, FDR < 0.01",
+                     ifelse(adj.P.Val <= 0.01 & FC.group=="down", 
+                            "Down, FDR < 0.01",
+                     ifelse(adj.P.Val <= 0.05 & FC.group=="up", 
+                            "Up, FDR < 0.05",
+                     ifelse(adj.P.Val <= 0.05 & FC.group=="down", 
+                            "Down, FDR < 0.05",
+                            "NS"))))))) %>%
+  arrange(group,-adj.P.Val) %>% 
+  separate(geneName,  into=c("a","b","c","group","module"), 
+           sep="_", remove = FALSE) %>% 
+  
+ggplot(aes(x=AveExpr, y=logFC, color=col.group, shape=group)) +
+  geom_point(size=2) +
+  scale_color_manual(values=logFC.cols) +
+  theme_classic() +
+  labs(x="Average log CPM", y="Log fold change", color="") +
+  guides(color = guide_legend(reverse = TRUE)) +
+  theme(text = element_text(size=18)) +
+  guides(color=guide_legend(nrow=3, byrow=TRUE))
+```
+
+## Module plots
+
+Boxplots of mean module gene expression.
+
+```{r message=FALSE, results=FALSE, warning=FALSE}
+for(mod.group in c("EOS.pct","PMN.pct")){
+  print(mod.group)
+  #Set dirs
+  mod.fig.dir <- list.files(path = "figs/module_level",
+                  pattern = mod.group,
+                  full.names = TRUE)
+
+  #Remove plots if exist
+  do.call(file.remove, list(list.files(mod.fig.dir,
+                     pattern="module_[0-9]{1,4}.pdf",
+                     full.names = TRUE)))
+
+  #Load results
+  voom.mods.temp <- mod.voom %>% 
+    filter(grepl(mod.group, module) & !grepl("00", module)) %>%
+    column_to_rownames("module")
+  
+  pval.temp <- P337_BAL_module_visit %>% 
+    filter(group != "(Intercept)") %>% 
+    filter(geneName %in% rownames(voom.mods.temp)) %>% 
+    rename(module = geneName) %>% 
+    arrange(module)
+
+  plot.all(voom.dat=voom.mods.temp, 
+         pval.dat=pval.temp, 
+         meta.dat = as.data.frame(dat.BAL.abund.norm.voom$targets),
+         genes.toPlot=unique(rownames(voom.mods.temp)),
+         join.var="libID",
+         #####
+         vars=c("visit", mod.group),
+         interaction=FALSE,
+         color.var="visit",
+         outdir=paste(mod.fig.dir,"/",sep=""), 
+         name="P337_BAL_expression_",
+         cores=3, width=5, height=5)
+}
+```
+
+# R session
+
+```{r}
+sessionInfo()
+```
+
+***
