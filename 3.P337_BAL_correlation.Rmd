@@ -396,31 +396,37 @@ as.data.frame(result.spls$loadings$Y) %>%
   rownames_to_column("var") %>% 
   mutate(space="Y") %>% 
   bind_rows(load) %>% 
-  pivot_longer(comp1:comp2) %>% 
-  mutate(name = recode(name, 
-                       "comp1"=paste("Component 1 \n X=",
-                                     round(result.spls$explained_variance$X[1]*100,
-                                           digits=1), "%, Y=",
-                                     round(result.spls$explained_variance$Y[1]*100,
-                                           digits=1),
-                                     "%", sep=""),
-                       "comp2" = paste("Component 1 \n X=",
-                                     round(result.spls$explained_variance$X[2]*100,
-                                           digits=1), "%, Y=",
-                                     round(result.spls$explained_variance$Y[2]*100,
-                                           digits=1),
-                                     "%", sep=""))) %>% 
+  pivot_longer(comp1:comp2, names_to = "comp") %>% 
+  mutate(name = ifelse(space=="X" & comp=="comp1", 
+                       paste("X\nComponent 1 = ", 
+                             round(result.spls$explained_variance$X[1]*100, digits=1), 
+                             "%", sep=""),
+                ifelse(space=="X" & comp=="comp2", 
+                      paste("X\nComponent 2 = ",
+                            round(result.spls$explained_variance$X[2]*100, digits=1),
+                            "%", sep=""),
+                ifelse(space=="Y" & comp=="comp1", 
+                      paste("Y\nComponent 1 = ",
+                            round(result.spls$explained_variance$Y[1]*100, digits=1), 
+                            "%", sep=""),
+                ifelse(space=="Y" & comp=="comp2", 
+                      paste("Y\nComponent 2 = ",
+                            round(result.spls$explained_variance$Y[2]*100, digits=1),
+                            "%", sep=""),
+                      NA))))) %>% 
   filter(value != 0) %>% 
+  mutate(var = gsub(".multiplex|.pct","",var)) %>% 
   
-  ggplot(aes(x=reorder_within(var, -value, space), 
-             y=value, fill=name)) +
+  ggplot(aes(x=reorder_within(var, -value, list(name, space)), 
+             y=value, fill=comp)) +
   geom_bar(position = position_dodge2(width = 0.9, preserve = "single"),
            stat="identity") +
   scale_x_reordered() +
   coord_flip() + 
   theme_classic() +
-  facet_wrap(~space, scales="free", ncol=2) +
-  labs(x="Selected variable", y="Loading", fill="")
+  facet_wrap(~name, scales="free", ncol=2) +
+  labs(x="Selected variable", y="Loading", fill="") +
+  theme(legend.position = "none")
 ```
 
 Correlations within SPLS
