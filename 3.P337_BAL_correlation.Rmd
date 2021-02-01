@@ -387,7 +387,7 @@ result.spls <- spls(X,Y,
 
 This results in the following variables across 2 components.
 
-```{r echo=FALSE}
+```{r echo=FALSE, fig.width=8.5, fig.height=8.5}
 load <- as.data.frame(result.spls$loadings$X) %>% 
   rownames_to_column("var") %>% 
   mutate(space="X")
