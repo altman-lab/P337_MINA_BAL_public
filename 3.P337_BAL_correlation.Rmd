@@ -221,23 +221,6 @@ neuro.delta <- neuro %>%
   pivot_wider(names_from = neuro, values_from = delta)
 ```
 
-#### Lung function and asthma
-
-```{r}
-asthma.delta <- dat.BAL.abund.norm.voom$targets %>% 
-  dplyr::select(donorID, FEV1.pctPP.preAlbuterol_V4:FeNO.PreBro_V5) %>% 
-  distinct() %>% 
-  #get visit from variable names
-  pivot_longer(-donorID) %>% 
-  separate(name, into=c("asthma","visit"), sep="_") %>% 
-  #Calculate delta
-  pivot_wider(names_from = visit) %>% 
-  mutate(delta = V5-V4) %>% 
-  #Wide format
-  dplyr::select(-V4,-V5) %>% 
-  pivot_wider(names_from = asthma, values_from = delta)
-```
-
 # Partial least squares (PLS)
 
 Regression mode: Y matrix is deflated with respect to information extracted/modeled from local regression on X. Here, the goal is to predict Y from X (and vice versa).
