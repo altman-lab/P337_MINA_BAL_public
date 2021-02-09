@@ -269,13 +269,10 @@ Y <- neuro.delta %>%
 identical(rownames(X),rownames(Y))
 ```
 
-Perform PLS regression.
+Perform SPLS regression.
 
 ```{r}
 ncomp = 10
-#PLS
-pls <- pls(X, Y, ncomp = ncomp, mode = "regression")  
-
 #SPLS
 spls <- spls(X, Y, ncomp = ncomp, mode = "regression")  
 ```
@@ -284,12 +281,9 @@ spls <- spls(X, Y, ncomp = ncomp, mode = "regression")
 
 #### Number of components
 
-Compute evaluation criteria for (S)PLS.
+Compute evaluation criteria for SPLS.
 
 ```{r}
-pls.Q2 <- perf(pls, validation = "Mfold", folds = 10, nrepeat = 100,
-               progressBar = FALSE)
-
 spls.Q2 <- perf(spls, validation = "Mfold", folds = 10, nrepeat = 100,
                 progressBar = FALSE)
 ```
@@ -297,9 +291,8 @@ spls.Q2 <- perf(spls, validation = "Mfold", folds = 10, nrepeat = 100,
 Q2 total is the sum of the quality of fit over all variables. In general, components should only continue to be added if Q2 \< 0.0975 (red line). After that, there are diminishing returns to adding more components. Here, we would need to retain too many components by this general rule.
 
 ```{r echo=FALSE}
-mutate(as.data.frame(pls.Q2$Q2.total), method="PLS") %>% 
-  bind_rows(mutate(as.data.frame(spls.Q2$Q2.total), method="SPLS")) %>% 
-   mutate(Component = c(1:ncomp,1:ncomp)) %>% 
+mutate(as.data.frame(spls.Q2$Q2.total), method="SPLS") %>% 
+   mutate(Component = c(1:ncomp)) %>% 
 
   ggplot(aes(x=Component, y=Q2.total)) +
   geom_point() +
@@ -308,11 +301,11 @@ mutate(as.data.frame(pls.Q2$Q2.total), method="PLS") %>%
   theme_classic()
 ```
 
-Thus, axis loadings will be assessed as well. Looking at the axis loadings (same for PLS and SPLS), component 1 explains the most variation (\~40%) in X with further components contributing to a lesser extent (\<10%). Y shows more even contributions from components 1-3 being \> 25%.
+Thus, axis loadings will be assessed as well. Looking at the axis loadings, component 1 explains the most variation (\~40%) in X with further components contributing to a lesser extent (\<10%). Y shows more even contributions from components 1-3 being \> 25%.
 
 ```{r echo=FALSE}
 #axis loadings
-as.data.frame(pls$explained_variance)%>% 
+as.data.frame(spls$explained_variance)%>% 
   mutate(Component = c(1:ncomp)) %>% 
   pivot_longer(X:Y, names_to = "space") %>% 
   
@@ -381,7 +374,7 @@ data.frame( var = c(rep("X", ncompX), rep("Y", ncompY)),
   collapse_rows(1, valign="top")
 ```
 
-### Run (S)PLS
+### Run SPLS
 
 Using the parameters determined above, run the final (S)PLS regression. `r ncompX` components will be used based on tuning X.
 
