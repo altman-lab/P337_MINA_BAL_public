@@ -112,7 +112,7 @@ plex.delta <- read_csv("data_raw/addtl.data/P337_BAL.multiplex.csv") %>%
   rename(donorID=ptID, FGF2_V4=TGF2_V4) %>% 
   pivot_longer(-donorID) %>% 
   #Log10 transform
-  mutate(value = ifelse(value==0,0, log10(value))) %>% 
+  mutate(value = log10(value)) %>% 
   separate(name, into=c("name","visit"), sep="_") %>% 
   pivot_wider(names_from = visit) %>% 
   mutate(delta = V5-V4) %>% 
@@ -131,7 +131,7 @@ cyto <- data.frame(cyto = gsub(".multiplex","", colnames(plex.delta)[-1]))
 
 #Find cytokine gene names
 key <- read_tsv("data_raw/EnsemblToHGNC_GRCh38.txt")
-cyto %>% filter(cyto %notin% key$hgnc_symbol)
+#cyto %>% filter(cyto %notin% key$hgnc_symbol)
 
 #change to gene names where needed
 cyto.rename <- cyto %>% 
@@ -253,13 +253,20 @@ Format data
 ```{r}
 X <- counts.mod.delta %>% 
   filter(donorID %in% neuro.delta$donorID) %>% 
+  rename_all(~gsub(".pct","",.)) %>% 
+  rename_all(~gsub("_"," ",.)) %>% 
   full_join(plex.delta) %>% 
+  rename_all(~gsub(".multiplex","",.)) %>% 
   column_to_rownames("donorID")
 X <- X[complete.cases(X),]
  
 Y <- neuro.delta %>% 
-  filter(donorID %in% rownames(X)) %>% 
+  filter(donorID %in% rownames(X)) %>%
+  rename_all(~gsub("_"," ",.)) %>% 
   column_to_rownames("donorID")
+
+##Check order
+identical(rownames(X),rownames(Y))
 ```
 
 Perform PLS regression.
