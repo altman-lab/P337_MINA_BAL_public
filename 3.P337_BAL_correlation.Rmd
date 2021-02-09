@@ -457,6 +457,64 @@ cim(result.spls, comp = 1:2, margins = c(7, 7),
 
 ![](figs/P337_SPLS.fMRI_mod.plex.corr.png)
 
+# Additional Pearson correlation
+## Lung function
+```{r}
+asthma.delta <- dat.BAL.abund.norm.voom$targets %>% 
+  dplyr::select(donorID, FEV1.pctPP.preAlbuterol_V4:FeNO.PreBro_V5) %>% 
+  distinct() %>% 
+  #get visit from variable names
+  pivot_longer(-donorID) %>% 
+  separate(name, into=c("asthma","visit"), sep="_") %>% 
+  #Calculate delta
+  pivot_wider(names_from = visit) %>% 
+  mutate(delta = V5-V4) %>% 
+  #Wide format
+  dplyr::select(-V4,-V5) %>% 
+  pivot_wider(names_from = asthma, values_from = delta)
+```
+## BDI and LSI
+
+```{r}
+temp <- read_excel(sheet="T2",
+  "data_raw/addtl.data/extraced.clusters.Matt.Altman_wbaseline_psychdata.xlsx") %>%
+  dplyr::select(idnum,BDI) %>% 
+  rename(BDI_V5=BDI)
+
+psych <- read_excel(sheet="T1",
+  "data_raw/addtl.data/extraced.clusters.Matt.Altman_wbaseline_psychdata.xlsx") %>%
+  dplyr::select(idnum,BDI,LSI) %>% 
+  rename(BDI_V4=BDI) %>% 
+  #Combine with other visit
+  full_join(temp) %>% 
+  #Format idnum to match RNAseq data
+  mutate(donorID = paste("MA",idnum, sep="")) %>% 
+  rename(LSI.ave=LSI) %>% 
+  #BDI delta
+  rowwise() %>% 
+  mutate(BDI.delta = BDI_V5-BDI_V4) %>% 
+  #BDI mean
+  mutate(BDI.ave = mean(BDI_V5, BDI_V4, na.rm=TRUE)) %>% 
+  dplyr::select(donorID, BDI.delta, BDI.ave, LSI.ave)
+
+
+#merge for correlation
+neuro.corr <- full_join(psych, counts.mod.delta) %>% 
+  full_join(plex.delta) %>% 
+  full_join(neuro.delta) 
+```
+
+```{r}
+source("scripts/corr.fxn.R")
+
+corr.fxn(counts=neuro.corr, 
+         metadata=neuro.corr, 
+         match.by="donorID", 
+         corr="pearson", 
+         basename="P337_BDI.LSI", 
+         heatmap=TRUE, dotplot=FALSE)
+```
+
 # R session
 
 ```{r}
