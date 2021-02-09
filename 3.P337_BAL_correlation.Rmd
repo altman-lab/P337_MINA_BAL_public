@@ -317,7 +317,7 @@ as.data.frame(spls$explained_variance)%>%
 ```
 
 ```{r echo=FALSE}
-ncompX <- 2
+ncompX <- 3
 ncompY <- 3
 ```
 
@@ -376,43 +376,60 @@ data.frame( var = c(rep("X", ncompX), rep("Y", ncompY)),
 
 ### Run SPLS
 
-Using the parameters determined above, run the final (S)PLS regression. `r ncompX` components will be used based on tuning X.
+Using the parameters determined above, run the final (S)PLS regression. 2 components will be used based on tuning X.
 
 ```{r}
 result.spls <- spls(X,Y, 
                     keepX = spls.MAE.X$choice.keepX,
                     keepY = spls.MAE.Y$choice.keepX,
-                    ncomp = ncompX, mode = "regression")  
+                    ncomp = 2, mode = "regression")  
+
+#Save
+save(result.spls, file="results/PLS/SPLS.RData")
 ```
 
 This results in the following variables across 2 components.
 
 ```{r echo=FALSE, fig.width=8.5, fig.height=8.5}
-load <- as.data.frame(result.spls$loadings$X) %>% 
+loadX <- as.data.frame(result.spls$loadings$X) %>% 
   rownames_to_column("var") %>% 
   mutate(space="X")
 
 as.data.frame(result.spls$loadings$Y) %>% 
   rownames_to_column("var") %>% 
   mutate(space="Y") %>% 
-  bind_rows(load) %>% 
+  bind_rows(loadX) %>% 
   pivot_longer(comp1:comp2, names_to = "comp") %>% 
   mutate(name = ifelse(space=="X" & comp=="comp1", 
                        paste("X\nComponent 1 = ", 
-                             round(result.spls$explained_variance$X[1]*100, digits=1), 
+                             round(result.spls$explained_variance$X[1]*100,
+                                   digits=1), 
                              "%", sep=""),
                 ifelse(space=="X" & comp=="comp2", 
                       paste("X\nComponent 2 = ",
-                            round(result.spls$explained_variance$X[2]*100, digits=1),
+                            round(result.spls$explained_variance$X[2]*100,
+                                  digits=1),
                             "%", sep=""),
+                # ifelse(space=="X" & comp=="comp3", 
+                #       paste("X\nComponent 3 = ",
+                #             round(result.spls$explained_variance$X[3]*100,
+                #                   digits=1),
+                #             "%", sep=""),
                 ifelse(space=="Y" & comp=="comp1", 
                       paste("Y\nComponent 1 = ",
-                            round(result.spls$explained_variance$Y[1]*100, digits=1), 
+                            round(result.spls$explained_variance$Y[1]*100,
+                                  digits=1), 
                             "%", sep=""),
                 ifelse(space=="Y" & comp=="comp2", 
                       paste("Y\nComponent 2 = ",
-                            round(result.spls$explained_variance$Y[2]*100, digits=1),
+                            round(result.spls$explained_variance$Y[2]*100,
+                                  digits=1),
                             "%", sep=""),
+                # ifelse(space=="Y" & comp=="comp3", 
+                #       paste("Y\nComponent 3 = ",
+                #             round(result.spls$explained_variance$Y[3]*100,
+                #                   digits=1),
+                #             "%", sep=""),
                       NA))))) %>% 
   filter(value != 0) %>% 
   mutate(var = gsub(".multiplex|.pct","",var)) %>% 
