@@ -34,6 +34,19 @@ loadXY <- as.data.frame(result.spls$loadings$Y) %>%
                                                   round(result.spls$explained_variance$Y[2]*100, digits=1),
                                                   "%", sep=""),
                                             NA))))) %>% 
+  mutate(facet.name = ifelse(space=="X", 
+                       paste("modules + cytokines\nComponent 1 = ", 
+                             round(result.spls$explained_variance$X[1]*100, digits=1), 
+                             "%\nComponent 2 = ",
+                             round(result.spls$explained_variance$X[2]*100, digits=1),
+                             "%", sep=""),
+                       ifelse(space=="Y", 
+                              paste("fMRI\nComponent 1 = ",
+                                    round(result.spls$explained_variance$Y[1]*100, digits=1), 
+                                    "%\nComponent 2 = ",
+                                    round(result.spls$explained_variance$Y[2]*100, digits=1),
+                                    "%", sep=""),
+                              NA))) %>% 
   filter(value != 0) %>% 
   #color group
   mutate(col.group = ifelse(grepl("BAL EOS", var), "module",
