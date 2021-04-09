@@ -3,6 +3,7 @@ library(drlib)
 library(ggrepel)
 library(cowplot)
 set.seed(3698)
+`%notin%` <- Negate(`%in%`)
 
 #### Data ####
 load("results/PLS/SPLS.RData")
@@ -11,11 +12,11 @@ load("results/PLS/SPLS.RData")
 loadX <- as.data.frame(result.spls$loadings$X) %>% 
   rownames_to_column("var") %>% 
   mutate(space="X")
+loadY <- as.data.frame(result.spls$loadings$Y) %>% 
+  rownames_to_column("var")%>% 
+  mutate(space="Y")
 
-loadXY <- as.data.frame(result.spls$loadings$Y) %>% 
-  rownames_to_column("var") %>% 
-  mutate(space="Y") %>% 
-  bind_rows(loadX) %>% 
+loadXY <- bind_rows(loadY, loadX) %>% 
   pivot_longer(comp1:comp2, names_to = "comp") %>% 
   mutate(name = ifelse(space=="X" & comp=="comp1", 
                        paste("modules + cytokines\nComponent 1 = ", 
@@ -53,73 +54,78 @@ loadXY <- as.data.frame(result.spls$loadings$Y) %>%
                             ifelse(grepl("L |R |pACC|dACC", var), "fMRI",
                                    "cytokine"))) 
   
-#### Loading plot1 ####
-plot1 <- loadXY %>% 
-  #reorder facets
-  mutate(name.index = as.character(as.numeric(as.factor(name))),
-         name.index = factor(name.index, levels=c(3,4,1,2)),
-         name.index = as.numeric(as.factor(name.index))) %>% 
-  mutate(name = fct_reorder(name, name.index)) %>% 
-  
-  ggplot(aes(x=reorder_within(var, -value, list(name, space)), 
-             y=value, fill=col.group)) +
+#### Plot setup ####
+#cut lines for components mapped to
+line.dat <- data.frame(facet.name = c(paste("modules + cytokines\nComponent 1 = ", 
+                                   round(result.spls$explained_variance$X[1]*100,
+                                         digits=1), 
+                                   "%\nComponent 2 = ",
+                                   round(result.spls$explained_variance$X[2]*100,
+                                         digits=1),
+                                   "%", sep=""),
+                             paste("fMRI\nComponent 1 = ",
+                                   round(result.spls$explained_variance$Y[1]*100,
+                                         digits=1), 
+                                   "%\nComponent 2 = ",
+                                   round(result.spls$explained_variance$Y[2]*100,
+                                         digits=1),
+                                   "%", sep="")), 
+                       Z=c(5.5,7.4,27.4,NA)) %>% 
+  mutate(facet.name = fct_relevel(factor(facet.name), rev))
+
+#Order labels and variables
+##Both components
+X.both <- c("CCL2","BAL EOS 02")
+Y.both <- c("L vA insula","R HO amgy")
+##Comp1 only
+X1 <- loadX %>% 
+  filter(comp1 != 0 & var %notin% X.both) %>% 
+  arrange(-comp1) %>% 
+  select(var) %>% unlist(use.names=FALSE)
+Y1 <- loadY %>% 
+  filter(comp1 != 0 & var %notin% Y.both) %>% 
+  arrange(-comp1) %>% 
+  select(var) %>% unlist(use.names=FALSE)
+##Comp2 only
+X2 <- loadX %>% 
+  filter(comp2 != 0 & var %notin% X.both) %>% 
+  arrange(-comp2) %>% 
+  select(var) %>% unlist(use.names=FALSE)
+Y2 <- loadY %>% 
+  filter(comp2 != 0 & var %notin% Y.both) %>% 
+  arrange(-comp2) %>% 
+  select(var) %>% unlist(use.names=FALSE)
+
+plot.dat <- loadXY %>% 
+  mutate(comp = recode(comp, "comp1"="Component 1", "comp2"="Component 2")) %>% 
+  mutate(facet.name = fct_relevel(factor(facet.name), rev)) %>% 
+  #order variables
+  mutate(var = factor(var, levels=c(X2,X1,X.both,Y2,Y1,Y.both))) %>%
+  arrange(desc(var))
+
+#### Plot ####
+plot <- plot.dat %>% 
+  ggplot(aes(x=var, y=value, fill=comp)) +
   geom_bar(position = position_dodge2(width = 0.9, preserve = "single"),
            stat="identity") +
   scale_x_reordered() +
   coord_flip() + 
   theme_classic() +
-  facet_wrap(~name, scales="free_y", ncol=2) +
+  facet_wrap(~facet.name, scales="free_y", ncol=2) +
   labs(x="Selected variable", y="Loading", fill="") +
-  theme(legend.position = "none") +
-  geom_hline(yintercept = 0)
-plot1
-
-#### Loading plot2 ####
-plot2 <- loadXY %>% 
-  ggplot(aes(x=reorder_within(var, -value, list(space)), 
-             y=value, fill=name)) +
-  geom_bar(position = position_dodge2(width = 0.9, preserve = "single"),
-           stat="identity") +
-  scale_x_reordered() +
-  coord_flip() + 
-  theme_classic() +
-  facet_wrap(~space, scales="free_y", ncol=2) +
-  labs(x="Selected variable", y="Loading", fill="") +
-  theme(legend.key.size = unit(0.8, "cm"))
-plot2
-
-#### Loading plot3 ####
-
-plot3 <- loadXY %>% 
-  select(-name) %>% 
-  pivot_wider(names_from = comp) %>% 
-  replace_na(list(comp1=0,comp2=0)) %>% 
-  
-  ggplot(aes(x=comp1, y=comp2)) +
-  geom_point(aes(color=col.group), size=2) +
-  geom_text_repel(aes(label=var), direction="both",
-                  min.segment.length = unit(0, 'lines'),
-                  show.legend = FALSE, size=3, max.overlaps = 100) +
-  coord_fixed() + 
-  theme_classic() +
-  labs(x=paste("Component 1\nmodule + cytokine = ", 
-               round(result.spls$explained_variance$X[1]*100, digits=1), 
-               "%\nfMRI = ",
-               round(result.spls$explained_variance$Y[1]*100, digits=1),
-               "%", sep=""), 
-       y=paste("Component 2\nmodule + cytokine = ", 
-               round(result.spls$explained_variance$X[2]*100, digits=1),
-               "%\nfMRI = ",
-               round(result.spls$explained_variance$Y[2]*100, digits=1),
-               "%", sep=""),
-       color="Dataset") +
-  geom_hline(yintercept = 0, lty = "dashed") +
-  geom_vline(xintercept = 0, lty = "dashed")
-
-plot3
+  geom_hline(yintercept=0) +
+  scale_fill_manual(values=c("#7CAE00","#C77CFF")) +
+  theme(legend.position = "bottom") +
+  geom_vline(data=line.dat, aes(xintercept=Z), color="grey")
+plot
 
 #### Save ####
+ggsave("publication/Fig3.SPLS.png", plot, width=6, height=5)
 
-ggsave("publication/FigX.SPLS1.png", plot1, width=8, height=7)
-ggsave("publication/FigX.SPLS2.png", plot2, width=8, height=6)
-ggsave("publication/FigX.SPLS3.png", plot3, width=6, height=7)
+#### Heatmap ####
+library(mixOmics)
+
+cols <- colorRampPalette(c("#2166ac","white","#b2182b"))
+cim(result.spls, margins = c(7, 7), 
+    color=cols(20),
+    save="png", name.save = "publication/Fig3.SPLS.heatmap")
