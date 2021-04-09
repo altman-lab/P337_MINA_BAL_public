@@ -592,6 +592,22 @@ BAL.genes.abund <- nrow(dat.BAL.abund$genes)
 
 This removes `r BAL.genes-BAL.genes.abund` (~ `r round((BAL.genes-BAL.genes.abund)/BAL.genes*100, digits=0)`%).
 
+Save removed gene list
+
+```{r echo=FALSE}
+as.data.frame(cpm(dat.BAL$counts)) %>% 
+  rownames_to_column("geneName") %>% 
+  filter(geneName %notin% rownames(dat.BAL.abund$counts)) %>% 
+  left_join(dat.BAL$genes) %>%
+  pivot_longer(-c(geneName, gene_biotype, hgnc_symbol)) %>% 
+  group_by(geneName, gene_biotype, hgnc_symbol) %>% 
+  summarise(mean.CPM = mean(value, na.rm=TRUE),
+            min.CPM = min(value, na.rm=TRUE),
+            max.CPM = max(value, na.rm=TRUE),
+            express.in.libs = length(value[value > 0])) %>% 
+  write_csv(file="data_clean/P337_BAL_rare_genes.csv")
+```
+
 ## TMM normalization
 
 Calculate factors to scale library sizes.
