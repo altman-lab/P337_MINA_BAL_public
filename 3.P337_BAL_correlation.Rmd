@@ -304,17 +304,17 @@ ncompX <- 3
 ncompY <- 3
 ```
 
-Taken together, `r ncompX` X and `r ncompY` Y components will be used.
+Taken together, `r ncompX` X and `r ncompY` Y components will be assessed, though likely only 2 components will be used in the final model.
 
 #### Number of variables
 
-Compute mean absolute values (MAE) for variables on each component. (Only SPLS is assessed from this point).
+Compute mean absolute values (MAE) for variables on each component. Other metrics (MSE, R2, bias) were also explored and can be found in `results/PLS/`
 
 ```{r eval=FALSE}
 #X variables
 spls.MAE.X <- tune.spls(X, Y, 
                         ncomp = ncompX, #Determined above
-                        test.keepX = c(2:30, 40),
+                        test.keepX = c(1:30, 40),
                         validation = "Mfold", 
                         folds = 10, nrepeat = 100, 
                         progressBar = FALSE, 
@@ -322,7 +322,7 @@ spls.MAE.X <- tune.spls(X, Y,
 #Y variables
 spls.MAE.Y <- tune.spls(Y, X,
                         ncomp = ncompY, #Determined above
-                        test.keepX = c(2:10),
+                        test.keepX = c(1:10),
                         validation = "Mfold", 
                         folds = 10, nrepeat = 10, 
                         progressBar = FALSE, 
