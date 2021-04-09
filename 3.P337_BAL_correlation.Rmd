@@ -357,6 +357,48 @@ data.frame( var = c(rep("X", ncompX), rep("Y", ncompY)),
   collapse_rows(1, valign="top")
 ```
 
+There is little reduction in MAE with the last several variables (features) on X component 1 and Y component 2 (as seen by differences near 0 below). Thus, variables on these components could be reduced without much error increase. However, further reduction in the X space results in EOS module 08 inclusion (not shown). As this module contains >100 genes, it actually complicates the space more than the ~10 cytokines included at MAE minimum. Therefore, MAE minimum will still be used.
+
+```{r echo=FALSE, warning=FALSE, fig.height=3}
+MAE.X <- as.data.frame(spls.MAE.X[["error.rate"]]) %>% 
+  rownames_to_column("feature") %>% 
+  #Difference
+  mutate(across(comp1:comp3, ~.-lag(.))) %>% 
+  pivot_longer(-feature)
+
+MAE.X %>% 
+  filter(name == "comp1") %>% 
+  ggplot(aes(x=as.numeric(feature), y=value)) +
+  geom_point() + 
+  geom_path(aes(group=name)) +
+  theme_bw() +
+  facet_wrap(~name) +
+  labs(x="Number of selected features",
+       y="Change in MAE from 1 fewer features",title="X") +
+  geom_hline(aes(yintercept=0), lty="dashed") +
+  geom_vline(aes(xintercept=13), lty="dashed")
+
+MAE.Y <- as.data.frame(spls.MAE.Y[["error.rate"]]) %>% 
+  rownames_to_column("feature") %>% 
+  #Difference
+  mutate(across(comp1:comp3, ~.-lag(.))) %>% 
+  pivot_longer(-feature)
+
+MAE.Y %>% 
+  filter(name == "comp2") %>% 
+  ggplot(aes(x=as.numeric(feature), y=value)) +
+  geom_point() + 
+  geom_path(aes(group=name)) +
+  theme_bw() +
+  facet_wrap(~name) +
+  labs(x="Number of selected features",
+       y="Change in MAE from 1 fewer features",title="Y") +
+  geom_hline(aes(yintercept=0), lty="dashed") +
+  geom_vline(aes(xintercept=6), lty="dashed")
+```
+
+Thus, these components will be reduced to features before this flattening, resulting in the following variables per component. Additionally, we will restrict analyses to components 1-2 as they explain >50% of the total variation.
+
 ### Run SPLS
 
 Using the parameters determined above, run the final (S)PLS regression. 2 components will be used based on tuning X.
@@ -442,6 +484,7 @@ cim(result.spls, comp = 1:2, margins = c(7, 7),
 
 # Additional Pearson correlation
 ## Lung function
+
 ```{r}
 asthma.delta <- dat.BAL.abund.norm.voom$targets %>% 
   dplyr::select(donorID, FEV1.pctPP.preAlbuterol_V4:FeNO.PreBro_V5) %>% 
