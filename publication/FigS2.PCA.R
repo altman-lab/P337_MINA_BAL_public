@@ -163,5 +163,6 @@ plot <- plot_grid(PCA1,plot.R, nrow=1,
           label_size = 13, label_fontface = "plain")
 #plot
 
-ggsave("publication/Fig2.PCA.png", height=5, width=8)
+ggsave("publication/FigS2.PCA.png", height=5, width=8)
+ggsave("publication/FigS2.PCA.pdf", height=5, width=8)
 

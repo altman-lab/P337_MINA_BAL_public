@@ -30,6 +30,11 @@ plot.dat <- neuro %>%
   mutate(donorID = paste("MA",idnum, sep="")) %>% 
   pivot_wider(names_from = visit) %>% 
   mutate(delta=Post-Pre) %>% 
+  #remove fxnal metrics
+  filter(!grepl("3way",neuro) & !grepl("LPR", neuro)) %>% 
+  #fix name
+  mutate(neuro = gsub("amgy","amyg",neuro)) %>% 
+  #wide format
   dplyr::select(-idnum,-Pre,-Post) %>% 
   pivot_wider(names_from = neuro, values_from = delta) %>% 
   column_to_rownames("donorID") %>% 
@@ -42,7 +47,13 @@ lgd <- Legend(col_fun = col_fun, title = "Post - Pre challenge",
 
 plot <- Heatmap(plot.dat, show_heatmap_legend = FALSE)
 
-png("publication/Fig1.fMRI.png", height=3.5, width=6, units="in", res=150)
+png("publication/FigS1.fMRI.png", height=3.5, width=6, units="in", res=150)
   draw(plot, padding=unit(c(0,0,15,0),"mm"))
   draw(lgd, x = unit(0.5, "npc"), y = unit(0.99, "npc"), just = c("center", "top"))
+dev.off()
+
+
+pdf("publication/FigS1.fMRI.pdf", height=3.5, width=6)
+draw(plot, padding=unit(c(0,0,15,0),"mm"))
+draw(lgd, x = unit(0.5, "npc"), y = unit(0.99, "npc"), just = c("center", "top"))
 dev.off()

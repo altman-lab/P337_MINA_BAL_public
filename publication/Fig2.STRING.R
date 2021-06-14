@@ -69,7 +69,7 @@ map.all <- dat.all %>%
                    .groups="drop")
 subgraph.all <- string_db$get_subnetwork(map.all$STRING_id)
 
-isolated <- which(degree(subgraph)==0)
+isolated <- which(degree(subgraph.all)==0)
 subgraph.all.clust <- delete.vertices(subgraph.all, isolated)
 
 # Arrange metadata as in network
@@ -115,11 +115,12 @@ plot +
 
 #### Map genes to STRING ####
 #genes in small clusters
-small.cluster <- c("KCNK17","KCNG2", "DHDDS","PDSS1", "PIGC","PRRC2C",
-                   "PBX2","FAM222A", "MRO","MROH7", "VPREB3","C1ORF54",
-                   "SDK2","KIAA1462", "FRMD6","FJX1", "HSPB9","SLC25A48","SLC25A53",
-                   "PYROXD2","THEM4","SPIN4", "NAT8L","RIMKLA", "OTULIN","OTUD7B",
-                   "VSIG1","CTSE")
+small.cluster <- c("FRMD6","FJX1", "NAT8L","RIMKLA", "VSIG1","CTSE",
+                   "OTULIN","OTUD7B", "PBX2","FAM222A", 
+                   "HSPB9","SLC25A48","SLC25A53",
+                   "DHDDS","PDSS1", "PIGC","PRRC2C", "MRO","MROH7", 
+                   "SDK2","KIAA1462", "KCNK17","KCNG2", "VPREB3","C1ORF54",
+                   "PYROXD2","THEM4","SPIN4")
 
 #Map genes to STRING
 map <- dat.all %>% 
@@ -186,7 +187,7 @@ plot <- ggraph(current.graph, layout= "manual",
                x = V(current.graph)$x, y = V(current.graph)$y) +
   #Edges
   geom_edge_link(aes(width=combined_score), color="grey80") +
-  scale_edge_width(range = c(0.2,1.5), name="STRING score") 
+  scale_edge_width(range = c(0.2,3), name="STRING score") 
 
 #Add nodes
 plot.large.clust <- plot + 
@@ -197,13 +198,13 @@ plot.large.clust <- plot +
                       labels=c("cyto"="Cytokine protein",
                                "mod"="BAL EOS 02 gene")) +
     geom_nodetext(aes(x = V(current.graph)$x, y = V(current.graph)$y,
-                      label=V(current.graph)$symbol), size=3) +
+                      label=V(current.graph)$symbol), size=5) +
     theme_blank() + coord_fixed() +
   theme(legend.position = "bottom", legend.direction = "vertical")
 
 #plot(plot.large.clust)
-ggsave("publication/Fig4.STRING400_lrg.clust.pdf", plot.large.clust, 
-       height=14, width=12)
+ggsave("publication/Fig2.STRING400_lrg.clust.pdf", plot.large.clust, 
+       height=30, width=30)
 
 #### Plot small clusters ####
 current.graph <- subgraph.small.clust
@@ -234,23 +235,23 @@ plot <- ggraph(current.graph, layout= "manual",
                x = V(current.graph)$x, y = V(current.graph)$y) +
   #Edges
   geom_edge_link(aes(width=combined_score), color="grey80") +
-  scale_edge_width(range = c(0.2,1.5), name="STRING score") 
+  scale_edge_width(range = c(0.2,3), name="STRING score") 
 
 #Add nodes
 plot.small.clust <- plot + 
   geom_scatterpie(data=as_data_frame(current.graph, "vertices"),
                   cols=sort(colnames(map.arrange)[-c(1:2)]), color=NA,
-                  pie_scale = 0.7) +
+                  pie_scale = 0.5) +
   scale_fill_manual(values=color.vec[2], name="",
                     labels=c("cyto"="Cytokine protein",
                              "mod"="BAL EOS 02 gene")) +
   geom_nodetext(aes(x = V(current.graph)$x, y = V(current.graph)$y,
-                    label=V(current.graph)$symbol), size=2) +
+                    label=V(current.graph)$symbol), size=5) +
   theme_blank() + coord_fixed() +
   theme(legend.position = "bottom", legend.direction = "vertical")
 
-plot(plot.small.clust)
-ggsave("publication/Fig4.STRING400_sm.clust.pdf", plot.small.clust, height=10, width=10)
+#plot(plot.small.clust)
+ggsave("publication/Fig2.STRING400_sm.clust.pdf", plot.small.clust, height=30, width=30)
 
 #### Plot isolated nodes ####
 current.graph <- subgraph.isolate
@@ -282,22 +283,22 @@ plot <- ggraph(current.graph, layout= "manual",
                x = V(current.graph)$x, y = V(current.graph)$y) +
   #Edges
   geom_edge_link(aes(width=combined_score), color="grey80") +
-  scale_edge_width(range = c(0.2,1.5), name="STRING score") 
+  scale_edge_width(range = c(0.2,3), name="STRING score") 
 
 #Add nodes
 plot.isolate <- plot + 
   geom_scatterpie(data=as_data_frame(current.graph, "vertices"),
                   cols=sort(colnames(map.arrange)[-c(1:2)]), color=NA,
-                  pie_scale = 0.7) +
+                  pie_scale = 0.5) +
   scale_fill_manual(values=color.vec[2], name="",
                     labels=c("cyto"="Cytokine protein",
                              "mod"="BAL EOS 02 gene")) +
   geom_nodetext(aes(x = V(current.graph)$x, y = V(current.graph)$y,
-                    label=V(current.graph)$symbol), size=2) +
+                    label=V(current.graph)$symbol), size=5) +
   theme_blank() + coord_fixed() +
   theme(legend.position = "bottom", legend.direction = "vertical")
 
 #plot(plot.isolate)
-ggsave("publication/Fig4.STRING400_isolate.pdf", plot.isolate, height=10, width=10)
+ggsave("publication/Fig2.STRING400_isolate.pdf", plot.isolate, height=30, width=30)
 
 
