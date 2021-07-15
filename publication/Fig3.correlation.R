@@ -89,22 +89,27 @@ dat0 <- full_join(counts.mod, plex, by=c("donorID","module"="name", "value", "vi
                        "module_P337_BAL_EOS.pct_02"="BAL EOS 02\nlog2 counts per million",
                        "IL17A"="IL17A\nlog10 UNITS", 
                        "L_vA_insula"="L vA insula"),
-         visit = recode_factor(factor(visit), "V4"="Pre","V5"="Post"))
+         visit = recode_factor(factor(visit), "V4"="Pre","V5"="Post")) %>% 
+  group_by(name, donorID) %>% 
+  mutate(diff = value[visit=="Post"]-value[visit=="Pre"],
+         diff.col = ifelse(diff<0, "down","up"),
+         diff.col = factor(diff.col, levels=c("up","down")))
 
 plot0 <- dat0 %>% 
   ggplot(aes(x=visit, y=value)) +
-  #geom_boxplot(outlier.shape = NA) +
-  geom_path(aes(group=donorID), color="grey") +
+  geom_path(aes(group=donorID, color=diff.col)) +
   geom_point() +
   theme_classic() +
-  labs(x="", y="") +
-  facet_wrap(~name, scales="free")
+  labs(x="", y="", color="Post - Pre\nchange") +
+  facet_wrap(~name, scales="free") +
+  scale_color_manual(values=c("down"="#74add1","up"="#d73027"))
 plot0
 
 #### corr plots ####
 dat <- full_join(counts.mod.delta, plex.delta) %>% 
   full_join(neuro.delta) %>% 
-  dplyr::select(donorID, BAL_EOS.pct_02, IL17A.multiplex, L_vA_insula)
+  dplyr::select(donorID, BAL_EOS.pct_02, IL17A.multiplex, L_vA_insula) %>% 
+  left_join(dplyr::select(dat0, donorID, diff.col))
 
 title1 <- paste("R", signif(cor(x=dat$L_vA_insula, y=dat$BAL_EOS.pct_02, 
                        method="pearson", use="complete.obs"), digits=3), sep=" = ")
@@ -112,7 +117,7 @@ plot1 <- dat %>%
   drop_na(L_vA_insula, BAL_EOS.pct_02) %>% 
   ggplot(aes(y=L_vA_insula, x=BAL_EOS.pct_02)) +
   geom_point() +
-  geom_smooth(method="lm",se=FALSE, color="grey") +
+  geom_smooth(method="lm",se=FALSE, color="#d73027") +
   labs(y="Post - pre L vA insula",
        x="Post - pre BAL EOS 02\nlog2 counts per million",
        title=title1) +
@@ -124,7 +129,7 @@ plot2 <- dat %>%
   drop_na(L_vA_insula,IL17A.multiplex) %>% 
   ggplot(aes(y=L_vA_insula, x=IL17A.multiplex)) +
   geom_point() +
-  geom_smooth(method="lm",se=FALSE, color="grey") +
+  geom_smooth(method="lm",se=FALSE, color="#d73027") +
   labs(y="Post - pre L vA insula",
        x="Post - pre IL17A\nlog10 UNITS",
        title=title2) +
@@ -132,11 +137,14 @@ plot2 <- dat %>%
 
 #### Save ####
 row2 <- plot_grid(plot1,plot2, nrow=1)
+row2
 
-ggsave(plot_grid(plot0, row2, nrow=2), filename = "publication/Fig3.correlation.png",
-       height=6, width=6)
-ggsave(plot_grid(plot0, row2, nrow=2), filename = "publication/Fig3.correlation.pdf",
-       height=6, width=6)
+ggsave(plot_grid(plot0, row2, nrow=2, labels = c("(A)","(B)")), 
+       filename = "publication/Fig3.correlation.png",
+       height=6, width=6.5)
+ggsave(plot_grid(plot0, row2, nrow=2, labels = c("(A)","(B)")), 
+       filename = "publication/Fig3.correlation.pdf",
+       height=6, width=6.5)
 
 #### IL16 ####
 #### plots ####
