@@ -36,18 +36,9 @@ loadXY <- bind_rows(loadY, loadX) %>%
                                                   round(result.spls$explained_variance$Y[2]*100, digits=1),
                                                   "%", sep=""),
                                             NA))))) %>% 
-  mutate(facet.name = ifelse(space=="X", 
-                       paste("modules + cytokines\nComponent 1 = ", 
-                             round(result.spls$explained_variance$X[1]*100, digits=1), 
-                             "%\nComponent 2 = ",
-                             round(result.spls$explained_variance$X[2]*100, digits=1),
-                             "%", sep=""),
+  mutate(facet.name = ifelse(space=="X", "modules + cytokines",
                        ifelse(space=="Y", 
-                              paste("fMRI\nComponent 1 = ",
-                                    round(result.spls$explained_variance$Y[1]*100, digits=1), 
-                                    "%\nComponent 2 = ",
-                                    round(result.spls$explained_variance$Y[2]*100, digits=1),
-                                    "%", sep=""),
+                              paste("fMRI"),
                               NA))) %>% 
   filter(value != 0) %>% 
   #color group
@@ -57,20 +48,7 @@ loadXY <- bind_rows(loadY, loadX) %>%
   
 #### Plot setup ####
 #cut lines for components mapped to
-line.dat <- data.frame(facet.name = c(paste("modules + cytokines\nComponent 1 = ", 
-                                   round(result.spls$explained_variance$X[1]*100,
-                                         digits=1), 
-                                   "%\nComponent 2 = ",
-                                   round(result.spls$explained_variance$X[2]*100,
-                                         digits=1),
-                                   "%", sep=""),
-                             paste("fMRI\nComponent 1 = ",
-                                   round(result.spls$explained_variance$Y[1]*100,
-                                         digits=1), 
-                                   "%\nComponent 2 = ",
-                                   round(result.spls$explained_variance$Y[2]*100,
-                                         digits=1),
-                                   "%", sep="")), 
+line.dat <- data.frame(facet.name = c("modules + cytokines","fMRI"), 
                        Z=c(2.5,5.5)) %>% 
   mutate(facet.name = fct_relevel(factor(facet.name), rev))
 
@@ -248,9 +226,9 @@ plot2 <- ggplot(cor.arrange, aes(x=X_variable, y=name, fill=value)) +
 #### Save ####
 ggsave("publication/Fig1.SPLS.png", 
        plot_grid(plot,plot2, rel_widths = c(2.5,1), labels = c("(A)","(B)"),
-                 align="hv", axis="b"),
+                 align="hv", axis="tb"),
        width=8, height=4)
 ggsave("publication/Fig1.SPLS.pdf", 
        plot_grid(plot,plot2, rel_widths = c(2.5,1), labels = c("(A)","(B)"),
-                 align="hv", axis="b"),
+                 align="hv", axis="tb"),
        width=8, height=4)
