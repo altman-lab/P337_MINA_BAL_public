@@ -14,7 +14,7 @@ require(ggnetwork) #theme_blank()
 require(scales)
 
 string_db <- STRINGdb$new(version="11", species=9606,
-                          score_threshold=400, input_directory="")
+                          score_threshold=700, input_directory="")
 
 #### Genes in modules ####
 load("data_clean/P337_BAL_module_data.RData")
@@ -57,7 +57,7 @@ dat.all <- data.frame(gene = c(mod.genes.temp, cyto$gene)) %>%
          cyto = cyto/total) %>% 
   select(-total)
 
-#### Find small cluster vs isolated genes ####
+#### Find cluster vs isolated genes ####
 map.all <- dat.all %>% 
   as.matrix() %>% 
   string_db$map(., "gene", removeUnmappedRows = TRUE) %>% 
@@ -113,14 +113,26 @@ plot +
   theme(legend.position = "bottom", legend.direction = "vertical")
 
 
-#### Map genes to STRING ####
+#### Remove non-main cluster ####
 #genes in small clusters
-small.cluster <- c("FRMD6","FJX1", "NAT8L","RIMKLA", "VSIG1","CTSE",
-                   "OTULIN","OTUD7B", "PBX2","FAM222A", 
-                   "HSPB9","SLC25A48","SLC25A53",
-                   "DHDDS","PDSS1", "PIGC","PRRC2C", "MRO","MROH7", 
-                   "SDK2","KIAA1462", "KCNK17","KCNG2", "VPREB3","C1ORF54",
-                   "PYROXD2","THEM4","SPIN4")
+small.cluster <- c("KRT1","KRT6A","KRT81",
+                   "CCT6A","VBP1",
+                   "ADAMTS2", "ADAMTS14",
+                   "THEM4","PYROXD2",
+                   "MFAP4","SFTPD","SFTPA1","SFTPA2","SFTPC",
+                   "JAZF1","CDC123",
+                   "NAT8L","RIMKLA",
+                   "ITGA7","COL4A1","COL9A3","COL19A1",
+                   "PRRC2C","PIGC",
+                   "SCT","GPR176",
+                   "TNFRSF17","TNFRSF13B",
+                   "PGD","TKTL1","G6PD","PGAM1","ENO1","PDHB","AK2","DLST",
+                   "HSD17B6","UGT2B11",
+                   "TMEM176A","TMEM176B",
+                   "AFTPH","AP1S2","BLOC1S6",
+                   "ANP32A","HMGB2",
+                   "OTULIN","OTUD7B",
+                   "DHDDS","PDSS1")
 
 #Map genes to STRING
 map <- dat.all %>% 
@@ -134,29 +146,13 @@ map <- dat.all %>%
                    cyto = mean(as.numeric(cyto), na.rm=TRUE),
                    .groups="drop")
 
-map.small.clust <- dat.all %>% 
-  filter(gene %in% small.cluster) %>% 
-  as.matrix() %>% 
-  string_db$map(., "gene", removeUnmappedRows = TRUE) %>% 
-  #collapse dups
-  group_by(STRING_id) %>% 
-  dplyr::summarise(gene = paste(unique(gene), collapse = " / "),
-                   mod = mean(as.numeric(mod), na.rm=TRUE),
-                   cyto = mean(as.numeric(cyto), na.rm=TRUE),
-                   .groups="drop")
-
 #### Network creation ####
 # Create igraph object 
 subgraph <- string_db$get_subnetwork(map$STRING_id)
-subgraph.small.clust <- string_db$get_subnetwork(map.small.clust$STRING_id)
 
 ##Remove isolated nodes, keep large cluster
 isolated <- which(degree(subgraph)==0)
 subgraph.large.clust <- delete.vertices(subgraph, isolated)
-
-##remove clusters, keep isolated nodes
-clusters <- which(degree(subgraph)>0)
-subgraph.isolate <- delete.vertices(subgraph, clusters)
 
 #### Plot large cluster ####
 current.graph <- subgraph.large.clust
@@ -177,7 +173,8 @@ vertex_attr(current.graph)[["mod"]] <- unlist(map.arrange["mod"])
 vertex_attr(current.graph)[["cyto"]] <- unlist(map.arrange["cyto"])
 
 #Layout
-xy <- layout_with_lgl(current.graph) 
+set.seed(10)
+xy <- layout_with_lgl(current.graph, cellsize=15) 
 
 V(current.graph)$x <- xy[, 1]
 V(current.graph)$y <- xy[, 2]
@@ -187,7 +184,7 @@ plot <- ggraph(current.graph, layout= "manual",
                x = V(current.graph)$x, y = V(current.graph)$y) +
   #Edges
   geom_edge_link(aes(width=combined_score), color="grey80") +
-  scale_edge_width(range = c(0.2,3), name="STRING score") 
+  scale_edge_width(range = c(0.1,1), name="STRING score") 
 
 #Add nodes
 plot.large.clust <- plot + 
@@ -198,13 +195,13 @@ plot.large.clust <- plot +
                       labels=c("cyto"="Cytokine protein",
                                "mod"="BAL EOS 02 gene")) +
     geom_nodetext(aes(x = V(current.graph)$x, y = V(current.graph)$y,
-                      label=V(current.graph)$symbol), size=5) +
+                      label=V(current.graph)$symbol), size=2) +
     theme_blank() + coord_fixed() +
   theme(legend.position = "bottom", legend.direction = "vertical")
 
 #plot(plot.large.clust)
-ggsave("publication/Fig2.STRING400_lrg.clust.pdf", plot.large.clust, 
-       height=30, width=30)
+ggsave("publication/Fig2.STRING700_lrg.clust.pdf", plot.large.clust, 
+       height=10, width=10)
 
 #### Plot small clusters ####
 current.graph <- subgraph.small.clust
