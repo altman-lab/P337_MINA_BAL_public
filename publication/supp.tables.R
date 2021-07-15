@@ -28,7 +28,7 @@ neuro <- read_excel(sheet="T2",
   arrange(donorID, visit) 
 
 neuro %>% 
-  write_csv("publication/TableSX.fMRI.csv")
+  write_csv("publication/TableS2.fMRI.csv")
 
 #### Log2 CPM genes ####
 attach("data_clean/P337_BAL_data.RData")
@@ -40,7 +40,7 @@ as.data.frame(dat.BAL.abund.norm.voom$E) %>%
   select(geneName,hgnc_symbol, everything(), -gene_biotype) %>% 
   rename(ENSEMBL=geneName) %>% 
   #Save
-  write_csv("publication/TableSX.gene.counts.csv")
+  write_csv("publication/TableS4.gene.counts.csv")
 
 #### Log2 CPM modules ####
 attach("data_clean/P337_BAL_module_data.RData")
@@ -50,7 +50,7 @@ mod.voom %>%
   mutate(module = gsub("P337_","",module),
          module = gsub(".pct","",module)) %>% 
   #Save
-  write_csv("publication/TableSX.module.counts.csv")
+  write_csv("publication/TableS7.module.counts.csv")
 
 #### Library metadata ####
 dat.BAL.abund.norm.voom$targets %>% 
@@ -61,7 +61,7 @@ dat.BAL.abund.norm.voom$targets %>%
   rename(type=group, batch=flow_cell, TMM_norm_factor=norm.factors,
          EOS_percent=EOS.pct, PMN_percent=PMN.pct) %>% 
   mutate(visit = recode(visit, "V4"="pre", "V5"="post")) %>% 
-  write_csv("publication/TableSX.RNAseq.library.metadata.csv")
+  write_csv("publication/TableS3.RNAseq.library.metadata.csv")
 
 #### Gene linear models ####
 gene.visit <- read_csv("results/gene_level/P337_BAL_gene_visit.csv") %>% 
@@ -99,7 +99,7 @@ full_join(gene.visit, gene.EOS) %>%
   full_join(mod) %>% 
   rename(ENSEMBL=geneName) %>% 
   select(ENSEMBL, hgnc_symbol, everything()) %>% 
-  write_csv("publication/TableSX.gene.linear.models.csv")
+  write_csv("publication/TableS6.gene.linear.models.csv")
 
 #### Correlation Post-Pre ####
 #Add if selected by SPLS
@@ -112,6 +112,15 @@ read_csv("results/PLS/pearson.correlation.csv") %>%
                                   X_variable == "module_BAL_EOS_02", "Y",NA)) %>% 
   dplyr::select(X_variable, SPLS_selected, everything()) %>% 
   arrange(SPLS_selected) %>% 
-  write_csv("publication/TableSX.Pearson.correlation.csv")
+  write_csv("publication/TableS8.Pearson.correlation.csv")
 
-#### SPLS ####
+#### ELISA ####
+
+read_csv("data_raw/addtl.data/P337_BAL.multiplex.csv") %>% 
+  pivot_longer(-ptID) %>% 
+  separate(name, into=c("name","visit")) %>% 
+  mutate(visit = recode(visit, "V4"="pre","V5"="post")) %>% 
+  rename(donorID=ptID) %>% 
+  pivot_wider() %>% 
+  arrange(donorID, desc(visit)) %>% 
+  write_csv("publication/TableS5.ELISA.csv")
