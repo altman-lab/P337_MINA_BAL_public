@@ -112,7 +112,7 @@ read_csv("results/PLS/pearson.correlation.csv") %>%
                                   X_variable == "module_BAL_EOS_02", "Y",NA)) %>% 
   dplyr::select(X_variable, SPLS_selected, everything()) %>% 
   arrange(SPLS_selected) %>% 
-  write_csv("publication/TableS8.Pearson.correlation.csv")
+  write_csv("publication/TableS9.Pearson.correlation.csv")
 
 #### ELISA ####
 
@@ -124,3 +124,19 @@ read_csv("data_raw/addtl.data/P337_BAL.multiplex.csv") %>%
   pivot_wider() %>% 
   arrange(donorID, desc(visit)) %>% 
   write_csv("publication/TableS5.ELISA.csv")
+
+#### Enrichment ####
+filter(read_csv("results/enrichment/enrich_sPLS_H.csv"), 
+       p.adjust<=0.2) %>% 
+  bind_rows(filter(read_csv("results/enrichment/enrich_sPLS_C2_CP.csv"),
+                   p.adjust<=0.05)) %>% 
+  bind_rows(filter(read_csv("results/enrichment/enrich_sPLS_C5_GO.BP.csv"), 
+                   p.adjust<=0.05)) %>% 
+  bind_rows(filter(read_csv("results/enrichment/enrich_sPLS_C7.csv"), 
+                   p.adjust<=0.03)) %>% 
+  arrange(category, p.adjust) %>% 
+  select(category, subcategory, Description, size.overlap.term, 
+         size.term, p.adjust, SYMBOLs) %>% 
+  rename(`SPLS genes in term (k)`=size.overlap.term, `total genes in term (K)`=size.term,
+         term=Description, FDR=p.adjust) %>% 
+  write_csv("publication/TableS8.enrichment.csv")
