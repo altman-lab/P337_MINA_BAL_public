@@ -106,7 +106,7 @@ plot +
                   pie_scale = 0.7) +
   scale_fill_manual(values=color.vec, name="",
                     labels=c("cyto"="Cytokine protein",
-                             "mod"="BAL EOS 02 gene")) +
+                             "mod"="EOS02 module gene")) +
   geom_nodetext(aes(x = V(subgraph.all.clust)$x, y = V(subgraph.all.clust)$y,
                     label=V(subgraph.all.clust)$symbol), size=2) +
   theme_blank() + coord_fixed() +
@@ -145,6 +145,8 @@ map <- dat.all %>%
                    mod = mean(as.numeric(mod), na.rm=TRUE),
                    cyto = mean(as.numeric(cyto), na.rm=TRUE),
                    .groups="drop")
+#Save
+write_csv(map, file="publication/STRING.genes.csv")
 
 #### Network creation ####
 # Create igraph object 
@@ -193,7 +195,7 @@ plot.large.clust <- plot +
                     pie_scale = 0.5) +
     scale_fill_manual(values=color.vec, name="",
                       labels=c("cyto"="Cytokine protein",
-                               "mod"="BAL EOS 02 gene")) +
+                               "mod"="EOS02 module gene")) +
     geom_nodetext(aes(x = V(current.graph)$x, y = V(current.graph)$y,
                       label=V(current.graph)$symbol), size=2) +
     theme_blank() + coord_fixed() +
@@ -241,7 +243,7 @@ plot.small.clust <- plot +
                   pie_scale = 0.5) +
   scale_fill_manual(values=color.vec[2], name="",
                     labels=c("cyto"="Cytokine protein",
-                             "mod"="BAL EOS 02 gene")) +
+                             "mod"="EOS02 module gene")) +
   geom_nodetext(aes(x = V(current.graph)$x, y = V(current.graph)$y,
                     label=V(current.graph)$symbol), size=5) +
   theme_blank() + coord_fixed() +
@@ -289,7 +291,7 @@ plot.isolate <- plot +
                   pie_scale = 0.5) +
   scale_fill_manual(values=color.vec[2], name="",
                     labels=c("cyto"="Cytokine protein",
-                             "mod"="BAL EOS 02 gene")) +
+                             "mod"="EOS02 module gene")) +
   geom_nodetext(aes(x = V(current.graph)$x, y = V(current.graph)$y,
                     label=V(current.graph)$symbol), size=5) +
   theme_blank() + coord_fixed() +

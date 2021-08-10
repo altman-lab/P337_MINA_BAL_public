@@ -1,6 +1,7 @@
 library(tidyverse)
 library(readxl)
 library(cowplot)
+library(Hmisc)
 
 #### Neuro data ####
 #Time point 1 = visit 4
@@ -86,8 +87,8 @@ dat0 <- full_join(counts.mod, plex, by=c("donorID","module"="name", "value", "vi
   dplyr::select(-libID) %>% 
   filter(name %in% c("module_P337_BAL_EOS.pct_02", "IL17A", "L_vA_insula")) %>% 
   mutate(name = recode(name, 
-                       "module_P337_BAL_EOS.pct_02"="BAL EOS 02\nlog2 counts per million",
-                       "IL17A"="IL17A\nlog10 UNITS", 
+                       "module_P337_BAL_EOS.pct_02"="EOS02 module\nlog2 counts per million",
+                       "IL17A"="IL17A\nlog10 pg/ml", 
                        "L_vA_insula"="L vA insula"),
          visit = recode_factor(factor(visit), "V4"="Pre","V5"="Post")) %>% 
   group_by(name, donorID) %>% 
@@ -111,27 +112,34 @@ dat <- full_join(counts.mod.delta, plex.delta) %>%
   dplyr::select(donorID, BAL_EOS.pct_02, IL17A.multiplex, L_vA_insula) %>% 
   left_join(dplyr::select(dat0, donorID, diff.col))
 
-title1 <- paste("R", signif(cor(x=dat$L_vA_insula, y=dat$BAL_EOS.pct_02, 
-                       method="pearson", use="complete.obs"), digits=3), sep=" = ")
+
+corr1 <- rcorr(x=dat$L_vA_insula, y=dat$BAL_EOS.pct_02, type="pearson") 
+
+title1 <- paste(paste("R", signif(corr1$r[1,2], digits=3), sep=" = "),
+                paste("P", signif(corr1$P[1,2], digits=3), sep=" = "), sep=", ")
+
 plot1 <- dat %>% 
   drop_na(L_vA_insula, BAL_EOS.pct_02) %>% 
   ggplot(aes(y=L_vA_insula, x=BAL_EOS.pct_02)) +
   geom_point() +
   geom_smooth(method="lm",se=FALSE, color="#d73027") +
   labs(y="Post - pre L vA insula",
-       x="Post - pre BAL EOS 02\nlog2 counts per million",
+       x="Post - pre EOS02 module\nlog2 counts per million",
        title=title1) +
   theme_classic()
 
-title2 <- paste("R", signif(cor(x=dat$L_vA_insula, y=dat$IL17A.multiplex, 
-                               method="pearson", use="complete.obs"), digits=3), sep=" = ")
+corr2 <- rcorr(x=dat$L_vA_insula, y=dat$IL17A.multiplex, type="pearson") 
+
+title2 <- paste(paste("R", signif(corr2$r[1,2], digits=3), sep=" = "),
+                paste("P", signif(corr2$P[1,2], digits=3), sep=" = "), sep=", ")
+
 plot2 <- dat %>% 
   drop_na(L_vA_insula,IL17A.multiplex) %>% 
   ggplot(aes(y=L_vA_insula, x=IL17A.multiplex)) +
   geom_point() +
   geom_smooth(method="lm",se=FALSE, color="#d73027") +
   labs(y="Post - pre L vA insula",
-       x="Post - pre IL17A\nlog10 UNITS",
+       x="Post - pre IL17A\nlog10 pg/ml",
        title=title2) +
   theme_classic()
 
@@ -145,63 +153,3 @@ ggsave(plot_grid(plot0, row2, nrow=2, labels = c("(A)","(B)")),
 ggsave(plot_grid(plot0, row2, nrow=2, labels = c("(A)","(B)")), 
        filename = "publication/Fig3.correlation.pdf",
        height=6, width=6.5)
-
-#### IL16 ####
-#### plots ####
-dat0 <- full_join(counts.mod, plex, by=c("donorID","module"="name", "value", "visit")) %>% 
-  full_join(neuro, by=c("donorID","module"="neuro", "value", "visit")) %>% 
-  rename(name=module) %>% 
-  dplyr::select(-libID) %>% 
-  filter(name %in% c("IL16", "R_vA_insula", "L_vA_insula")) %>% 
-  mutate(name = recode(name, 
-                       "IL16"="IL16\nlog10 UNITS", 
-                       "R_vA_insula"="R vA insula",
-                       "L_vA_insula"="L vA insula"),
-         visit = recode_factor(factor(visit), "V4"="Pre","V5"="Post"))
-
-plot0 <- dat0 %>% 
-  ggplot(aes(x=visit, y=value, color=donorID)) +
-  #geom_boxplot(outlier.shape = NA) +
-  geom_path(aes(group=donorID), color="grey") +
-  geom_point() +
-  theme_classic() +
-  labs(x="", y="") +
-  facet_wrap(~name, scales="free")
-plot0
-
-#### corr plots ####
-dat <- full_join(counts.mod.delta, plex.delta) %>% 
-  full_join(neuro.delta) %>% 
-  dplyr::select(donorID, IL16.multiplex, R_vA_insula, L_vA_insula)
-
-title1 <- paste("R", signif(cor(x=dat$L_vA_insula, y=dat$IL16.multiplex, 
-                                method="pearson", use="complete.obs"), digits=3), sep=" = ")
-plot1 <- dat %>% 
-  drop_na(L_vA_insula, IL16.multiplex) %>% 
-  ggplot(aes(y=L_vA_insula, x=IL16.multiplex)) +
-  geom_point() +
-  geom_smooth(method="lm",se=FALSE, color="grey") +
-  labs(y="Post - pre L vA insula",
-       x="Post - pre IL16\nlog10 UNITS",
-       title=title1) +
-  theme_classic()
-
-title2 <- paste("R", signif(cor(x=dat$R_vA_insula, y=dat$IL16.multiplex, 
-                                method="pearson", use="complete.obs"), digits=3), sep=" = ")
-plot2 <- dat %>% 
-  drop_na(R_vA_insula, IL16.multiplex) %>% 
-  ggplot(aes(y=R_vA_insula, x=IL16.multiplex)) +
-  geom_point() +
-  geom_smooth(method="lm",se=FALSE, color="grey") +
-  labs(y="Post - pre R vA insula",
-       x="Post - pre IL16\nlog10 UNITS",
-       title=title2) +
-  theme_classic()
-
-#### Save ####
-row2 <- plot_grid(plot1,plot2, nrow=1)
-
-ggsave(plot_grid(plot0, row2, nrow=2), filename = "publication/Fig3.correlation.IL16.png",
-       height=6, width=6)
-ggsave(plot_grid(plot0, row2, nrow=2), filename = "publication/Fig3.correlation.IL16.pdf",
-       height=6, width=6)

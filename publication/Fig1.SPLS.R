@@ -1,7 +1,7 @@
 library(tidyverse)
 library(readxl)
-library(drlib)
-library(ggrepel)
+#library(drlib)
+#library(ggrepel)
 library(cowplot)
 set.seed(3698)
 `%notin%` <- Negate(`%in%`)
@@ -44,7 +44,8 @@ loadXY <- bind_rows(loadY, loadX) %>%
   #color group
   mutate(col.group = ifelse(grepl("BAL EOS", var), "module",
                             ifelse(grepl("L |R |pACC|dACC", var), "fMRI",
-                                   "cytokine"))) 
+                                   "cytokine"))) %>% 
+  mutate(var = ifelse(var=="BAL EOS 02", "EOS02 module", var))
   
 #### Plot setup ####
 #cut lines for components mapped to
@@ -57,6 +58,7 @@ line.dat <- data.frame(facet.name = c("modules + cytokines","fMRI"),
 X1 <- loadX %>% 
   filter(comp1 != 0 ) %>% 
   arrange(-comp1) %>% 
+  mutate(var=ifelse(var=="BAL EOS 02", "EOS02 module", var)) %>% 
   dplyr::select(var) %>% unlist(use.names=FALSE)
 ##Comp2 only
 X2 <- loadX %>% 
@@ -191,9 +193,11 @@ write_csv(cor, "results/PLS/pearson.correlation.csv")
 #Arrange as in barplot
 cor.arrange <- cor %>% 
   pivot_longer(-X_variable) %>% 
-  mutate(X_variable = gsub("module_","",X_variable),
-         X_variable = gsub("_"," ",X_variable),
+  mutate(X_variable = ifelse(X_variable=="module_BAL_EOS_02", 
+                            "EOS02 module",
+                             gsub("_"," ",X_variable)),
          name = gsub("_"," ",name)) %>% 
+
   #Spls selected
   filter(X_variable %in% plot.dat$var & name %in% plot.dat$var) %>% 
   #order Y
@@ -221,7 +225,7 @@ plot2 <- ggplot(cor.arrange, aes(x=X_variable, y=name, fill=value)) +
                                title.position = "top", title.hjust = 0.5)) +
   scale_fill_gradient2(low="darkblue",mid="white",high="darkred",
                        limits=c(-0.8,0.8))
-#plot2
+plot2
 
 #### Save ####
 ggsave("publication/Fig1.SPLS.png", 
