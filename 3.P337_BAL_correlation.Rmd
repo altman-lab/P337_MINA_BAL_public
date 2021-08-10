@@ -491,6 +491,15 @@ cim(result.spls, comp = 1:2, margins = c(7, 7),
 
 ![](figs/P337_SPLS.fMRI_mod.plex.corr.png)
 
+Correlation of PCs
+
+```{r echo=FALSE}
+cor(spls$variates$X[, 1:2], spls$variates$Y[, 1:2]) %>% 
+  kable() %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE) %>% 
+  add_header_above(c(" ","Y"=2)) %>% 
+  pack_rows("X",1,2)
+```
 # Additional Pearson correlation
 ## Lung function
 
