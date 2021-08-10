@@ -501,13 +501,77 @@ cor(spls$variates$X[, 1:2], spls$variates$Y[, 1:2]) %>%
   pack_rows("X",1,2)
 ```
 
+### Enrichment
+
+Determine Broad term enrichment in sPLS selected genes and proteins in the STRING network.
+
 ```{r}
+source("https://raw.githubusercontent.com/kdillmcfarland/R_bioinformatic_scripts/master/hypergeo_enricher.R")
+
+gene.list <- list()
+#Main STRING cluster
+gene.list[["STRING.cluster"]] <- read_csv("publication/STRING.genes.csv") %>% 
+  distinct(gene) %>% unlist(use.names = FALSE)
 ```
 
+#### Hallmark (H)
 
+```{r h.1, warning=FALSE, message=FALSE, results=FALSE}
+enrich.fxn(gene.list = gene.list, ID.type="SYMBOL",
+           category = "H",
+           genome = "org.Hs.eg.db", 
+           basename = "sPLS",
+           outdir = "results/enrichment/")
 ```
 
+#### Curated gene sets (C2 CP)
 
+```{r c2.1, warning=FALSE, message=FALSE, results=FALSE}
+enrich.fxn(gene.list = gene.list, ID.type="SYMBOL",
+           category = "C2", subcategory="CP",
+           genome = "org.Hs.eg.db", 
+           basename = "sPLS",
+           outdir = "results/enrichment/")
+```
+
+#### Gene ontology (C5)
+
+```{r c5, warning=FALSE, message=FALSE, results=FALSE}
+enrich.fxn(gene.list = gene.list, ID.type="SYMBOL",
+           category = "C5", subcategory="GO:BP",
+           genome = "org.Hs.eg.db", 
+           basename = "sPLS",
+           outdir = "results/enrichment/")
+```
+
+#### Immunologic (C7)
+
+```{r c7, warning=FALSE, message=FALSE, results=FALSE}
+enrich.fxn(gene.list = gene.list, ID.type="SYMBOL",
+           category = "C7", 
+           genome = "org.Hs.eg.db", 
+           basename = "sPLS",
+           outdir = "results/enrichment/")
+```
+
+#### Enrichment results
+
+Top 10 terms for each gene set group.
+
+```{r echo=FALSE, message=FALSE}
+read_csv("results/enrichment/enrich_sPLS_H.csv") %>% 
+  bind_rows(read_csv("results/enrichment/enrich_sPLS_C2_CP.csv")) %>% 
+  bind_rows(read_csv("results/enrichment/enrich_sPLS_C5_GO.BP.csv")) %>% 
+  bind_rows(read_csv("results/enrichment/enrich_sPLS_C7.csv")) %>% 
+  group_by(category) %>% 
+  slice_min(n=10, order_by = p.adjust) %>% 
+  dplyr::select(category, Description, size.overlap.term,
+                size.term, p.adjust) %>% 
+  arrange(category, p.adjust) %>% 
+  
+  kable() %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE) %>% 
+  collapse_rows(1:2, valign="top")
 ```
 
 # R session
