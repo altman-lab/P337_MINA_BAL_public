@@ -81,11 +81,14 @@ plex.delta <- plex %>%
 
 #### IL17A AND EOS MODULE 02 ####
 #### plots ####
+OI <-  c("module_P337_BAL_EOS.pct_02", "IL17A", "L_vA_insula")
+# OI <-  c("FLT3L", "GCSF", "IL10","PDGFAA", "CCL27", "IFNA2", "GMCSF",
+#          "CCL21", "TGFA", "CCL26", "IL23", "CCL7")
 dat0 <- full_join(counts.mod, plex, by=c("donorID","module"="name", "value", "visit")) %>% 
   full_join(neuro, by=c("donorID","module"="neuro", "value", "visit")) %>% 
   rename(name=module) %>% 
   dplyr::select(-libID) %>% 
-  filter(name %in% c("module_P337_BAL_EOS.pct_02", "IL17A", "L_vA_insula")) %>% 
+  filter(name %in% OI) %>% 
   mutate(name = recode(name, 
                        "module_P337_BAL_EOS.pct_02"="EOS02 module\nlog2 counts per million",
                        "IL17A"="IL17A\nlog10 pg/ml", 
