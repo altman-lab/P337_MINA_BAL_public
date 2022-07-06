@@ -30,10 +30,13 @@ PCA1 <- ggplot(PCA.dat, aes(PC1, PC2)) +
   theme_classic() +
   labs(x=PC1.label, y=PC2.label, title="Genes") +
   coord_fixed(ratio=1) +
-  scale_color_discrete(labels = c("Pre", "Post"),
-                       name = c("Allergen challenge")) +
-  theme(legend.position = "bottom") +
-  scale_shape(guide = 'none')
+  scale_colour_manual(name = "SBP-Ag",
+                      labels = c("Pre","Post"),
+                      values = scales::hue_pal()(2)) +   
+  scale_shape_manual(name = "SBP-Ag",
+                     labels = c("Pre","Post"),
+                     values = c(19,17)) +
+  theme(legend.position = "bottom")
 PCA1
 
 #### Module PCA ####
@@ -64,56 +67,6 @@ PCA2 <- ggplot(PCA.dat, aes(PC1, PC2)) +
   theme(legend.position = "none")
   
 #PCA2
-
-#### fMRI data ####
-#Time point 1 = visit 4
-neuro <- read_excel(sheet="T1",
-                    "data_raw/addtl.data/extraced.clusters.Matt.Altman_wbaseline_psychdata.xlsx") %>% 
-  #long format
-  pivot_longer(-idnum, names_to="neuro") %>% 
-  #add sample variable
-  mutate(sampID=paste("MA", idnum,"_V4",sep=""))
-
-#Time point 2 = visit 5
-neuro <- read_excel(sheet="T2",
-                    "data_raw/addtl.data/extraced.clusters.Matt.Altman_wbaseline_psychdata.xlsx") %>% 
-  #long format
-  pivot_longer(-idnum, names_to="neuro") %>% 
-  #add sample variable
-  mutate(sampID=paste("MA", idnum, "_V5",sep=""))  %>% 
-  #Combine with other visit
-  full_join(neuro) %>% 
-  #wide format
-  pivot_wider(names_from = neuro) %>% 
-  select(-BDI, -LSI, -idnum) %>% 
-  column_to_rownames("sampID")
-
-#### fMRI PCA ####
-# PCA <- neuro %>% 
-#   prcomp()
-# 
-# PC1.label <- paste("PC1 (", round(summary(PCA)$importance[2,1], digits=3)*100, "%)", sep="")
-# PC2.label <-paste("PC2 (", round(summary(PCA)$importance[2,2], digits=3)*100, "%)", sep="")
-# 
-# # Extract PC values
-# PCA.dat <- as.data.frame(PCA$x) %>% 
-#   rownames_to_column("sampID") %>%
-#   # Select PCs
-#   dplyr::select(sampID, PC1:PC3) %>% 
-#   # Add  metadata
-#   separate(sampID, into=c("donorID","visit"), sep="_", remove = FALSE)
-# 
-# PCA3 <- ggplot(PCA.dat, aes(PC1, PC2)) +
-#   geom_line(aes(group=donorID), color="grey") +
-#   geom_point(aes(color=visit, shape=visit),
-#              size=3) +
-#   #Beautify
-#   theme_classic() +
-#   labs(x=PC1.label, y=PC2.label, title="fMRI") +
-#   coord_fixed(ratio=1)  +
-#   theme(legend.position = "none")
-
-#PCA3
 
 #### Cytokine PCA ####
 plex <- read_csv("data_raw/addtl.data/P337_BAL.multiplex.csv") %>% 
@@ -163,6 +116,6 @@ plot <- plot_grid(PCA1,plot.R, nrow=1,
           label_size = 13, label_fontface = "plain")
 #plot
 
-ggsave("publication/FigS2.PCA.png", height=5, width=8)
-ggsave("publication/FigS2.PCA.pdf", height=5, width=8)
+ggsave("publication/FigS3.PCA.png", height=5, width=8)
+ggsave("publication/FigS3.PCA.pdf", height=5, width=8)
 

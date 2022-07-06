@@ -62,5 +62,5 @@ plot.all <- plot.load+plot2+plot +
   plot_annotation(tag_levels = 'A',
                   tag_prefix = '(',tag_suffix = ')') + 
   plot_layout(design=layout)
-ggsave(plot.all, filename = "publication/FigS4.MAE.png", height=6, width=8)
-ggsave(plot.all, filename = "publication/FigS4.MAE.pdf", height=6, width=8)
+ggsave(plot.all, filename = "publication/FigS5.MAE.png", height=6, width=8)
+ggsave(plot.all, filename = "publication/FigS5.MAE.pdf", height=6, width=8)
