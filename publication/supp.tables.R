@@ -1,6 +1,7 @@
 # Format and save supplmental tables for publication #
 library(tidyverse)
 library(readxl)
+library(openxlsx)
 `%notin%` <- Negate(`%in%`)
 
 #### fMRI ####
@@ -93,13 +94,33 @@ mod <- mod.genes %>%
                         ifelse(grepl("PMN", module), "PMN_module", NA))) %>% 
   pivot_wider(values_from = module)
 
-full_join(gene.visit, gene.EOS) %>% 
+model.result <- full_join(gene.visit, gene.EOS) %>% 
   full_join(gene.PMN) %>% 
   #add module assignment and HGNC
   full_join(mod) %>% 
   rename(ENSEMBL=geneName) %>% 
-  select(ENSEMBL, hgnc_symbol, everything()) %>% 
-  write_csv("publication/TableS6.gene.linear.models.csv")
+  select(ENSEMBL, hgnc_symbol, everything())
+
+#simplfy genes in modules lists
+temp <- model.result %>% 
+  select(hgnc_symbol, EOS_module, PMN_module) %>% 
+  pivot_longer(-hgnc_symbol) %>% 
+  drop_na(value)
+
+mod.ls <- list()
+for(mod in sort(unique(temp$value))){
+  mod.ls[[mod]] <- temp %>% 
+    filter(value == mod) %>% 
+    arrange(hgnc_symbol) %>% 
+    pull(hgnc_symbol)
+}
+
+gene.in.mod <- plyr::ldply(mod.ls, rbind) %>% 
+  column_to_rownames(".id") %>% 
+  t() %>% as.data.frame()
+
+list_of_datasets <- list("model_results" = model.result, "genes_in_modules" = gene.in.mod)
+write.xlsx(list_of_datasets, file = "publication/TableS5.gene.linear.models.xlsx")
 
 #### Correlation Post-Pre ####
 #Add if selected by SPLS
