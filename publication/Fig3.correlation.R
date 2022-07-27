@@ -54,7 +54,7 @@ cell <- dat.BAL.abund.norm.voom$targets %>%
 
 #### IL17A AND EOS MODULE 02 ####
 #### plots ####
-OI <-  c("EOS.pct","module_P337_BAL_EOS.pct_02", "IL17A", "L_vA_insula")
+OI <-  c("module_P337_BAL_EOS.pct_02", "IL17A", "EOS.pct", "L_vA_insula")
 
 dat0 <- full_join(counts.mod, plex, by=c("donorID","module"="name", "value", "visit")) %>% 
   full_join(neuro, by=c("donorID","module"="neuro", "value", "visit")) %>% 
@@ -65,9 +65,9 @@ dat0 <- full_join(counts.mod, plex, by=c("donorID","module"="name", "value", "vi
   #remove failed fMRI
   filter(donorID != "MA1012") %>% 
   mutate(name = recode_factor(factor(name), 
-                              "EOS.pct"="Eosinophil\n cell %",
                               "module_P337_BAL_EOS.pct_02"="EOS02 module\nlog2 CPM",
-                              "IL17A"="IL17A\nlog10 pg/ml", 
+                              "IL17A"="IL-17A\nlog10 pg/ml", 
+                              "EOS.pct"="Eosinophil\n cell %",
                               "L_vA_insula"="L vA insula\nBOLD score"),
          visit = recode_factor(factor(visit), "V4"="Pre","V5"="Post")) %>% 
   group_by(name, donorID) %>% 
@@ -122,22 +122,22 @@ plot1 <- dat.delta %>%
   theme_classic()
 
 corr2 <- rcorr(x=dat.delta$`L vA insula\nBOLD score`,
-               y=dat.delta$`IL17A\nlog10 pg/ml`, type="pearson") 
+               y=dat.delta$`IL-17A\nlog10 pg/ml`, type="pearson") 
 
 title2 <- paste(paste("R", signif(corr2$r[1,2], digits=2), sep=" = "),
                 paste("P", signif(corr2$P[1,2], digits=2), sep=" = "), sep=", ")
 
 plot2 <- dat.delta %>% 
-  ggplot(aes(y=`L vA insula\nBOLD score`, x=`IL17A\nlog10 pg/ml`)) +
+  ggplot(aes(y=`L vA insula\nBOLD score`, x=`IL-17A\nlog10 pg/ml`)) +
   geom_point() +
   geom_smooth(method="lm",se=FALSE, color="#d73027") +
   labs(y="Post - pre L vA insula",
-       x="Post - pre IL17A\nlog10 pg/ml",
+       x="Post - pre IL-17A\nlog10 pg/ml",
        title=title2) +
   theme_classic()
 
 #### Save ####
-row2 <- plot_grid(plot0,plot1,plot2, nrow=1)
+row2 <- plot_grid(plot1,plot2,plot0, nrow=1)
 row2
 
 ggsave(plot_grid(plot00, NULL, row2, nrow=3, labels = c("(A)","","(B)"),

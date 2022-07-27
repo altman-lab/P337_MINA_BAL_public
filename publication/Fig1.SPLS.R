@@ -45,7 +45,17 @@ loadXY <- bind_rows(loadY, loadX) %>%
   mutate(col.group = ifelse(grepl("BAL EOS", var), "module",
                             ifelse(grepl("L |R |pACC|dACC", var), "fMRI",
                                    "cytokine"))) %>% 
-  mutate(var = ifelse(var=="BAL EOS 02", "EOS02 module", var))
+  mutate(var = ifelse(var=="BAL EOS 02", "EOS02 module", var)) %>% 
+  #fix protein names
+  mutate(var = gsub("^IL","IL-",var),
+         var = recode(var,
+                      "FLT3L"="FLT3LG",
+                      "TGFA"="TGF-A",
+                      "GCSF"="G-CSF",
+                      "PDGFAA"="PDGF-AA",
+                      "IFNA2"="IFN-A2",
+                      "GMCSF"="GM-CSF"))
+
 
 #### Plot setup ####
 #cut lines for components mapped to
@@ -55,15 +65,15 @@ line.dat <- data.frame(facet.name = c("modules + cytokines","fMRI"),
 
 #Order labels and variables
 ##Comp1 only
-X1 <- loadX %>% 
-  filter(comp1 != 0 ) %>% 
-  arrange(-comp1) %>% 
+X1 <- loadXY %>% 
+  filter(space == "X" & comp == "comp1") %>% 
+  arrange(-value) %>% 
   mutate(var=ifelse(var=="BAL EOS 02", "EOS02 module", var)) %>% 
   dplyr::select(var) %>% unlist(use.names=FALSE)
 ##Comp2 only
-X2 <- loadX %>% 
-  filter(comp2 != 0) %>% 
-  arrange(-comp2) %>% 
+X2 <- loadXY %>% 
+  filter(space == "X" & comp == "comp2") %>% 
+  arrange(-value) %>%
   dplyr::select(var) %>% unlist(use.names=FALSE)
 
 plot.dat <- loadXY %>% 
@@ -76,7 +86,7 @@ plot.dat <- loadXY %>%
                                            "dACC","pACC","R HO amyg",
                                            "L dA insula","L HO amyg",
                                            "L vA insula")))) %>%
-  arrange(desc(var))
+  arrange(desc(var)) 
 
 #### Plot PLS ####
 plot <- plot.dat %>% 
@@ -172,6 +182,15 @@ plex.delta<- read_csv("data_raw/addtl.data/P337_BAL.multiplex.csv") %>%
   mutate(delta=V5-V4) %>% 
   select(-V4, -V5) %>% 
   filter(name %in% rownames(cyto)) %>% 
+  #fix protein names
+  mutate(name = gsub("^IL","IL-",name),
+         name = recode(name,
+                      "FLT3L"="FLT3LG",
+                      "TGFA"="TGF-A",
+                      "GCSF"="G-CSF",
+                      "PDGFAA"="PDGF-AA",
+                      "IFNA2"="IFN-A2",
+                      "GMCSF"="GM-CSF"))%>% 
   pivot_wider(values_from = delta) %>% 
   rename(donorID=ptID)
 
@@ -186,9 +205,9 @@ X <- neuro.delta %>%
   rename_all(~gsub("_"," ",.)) %>% 
   #order Y
   select(donorID, #`EOS %`, `PMN %`,
-         `FLT3L`,`IL17A`,`BAL EOS 02`,`GCSF`,`IL10`,
-         `PDGFAA`,`CCL27`,`IFNA2`,`GMCSF`,`CCL21`,
-         `TGFA`,`CCL26`,`IL23`,`CCL7`,`CXCL1`,`IL16`,
+         `FLT3LG`,`IL-17A`,`BAL EOS 02`,`G-CSF`,`IL-10`,
+         `PDGF-AA`,`CCL27`,`IFN-A2`,`GM-CSF`,`CCL21`,
+         `TGF-A`,`CCL26`,`IL-23`,`CCL7`,`CXCL1`,`IL-16`,
          `L vA insula`,`L HO amyg`,`L dA insula`,`R HO amyg`,
          `pACC`,`dACC`,`R dA insula`,`R vA insula`) %>% 
   column_to_rownames("donorID") %>% 
