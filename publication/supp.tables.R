@@ -29,7 +29,7 @@ neuro <- read_excel(sheet="T2",
   arrange(donorID, visit) 
 
 neuro %>% 
-  write_csv("publication/TableS2.fMRI.csv")
+  write_csv("publication/TableS7.fMRI.csv")
 
 #### Log2 CPM genes ####
 attach("data_clean/P337_BAL_data.RData")
@@ -41,7 +41,7 @@ as.data.frame(dat.BAL.abund.norm.voom$E) %>%
   select(geneName,hgnc_symbol, everything(), -gene_biotype) %>% 
   rename(ENSEMBL=geneName) %>% 
   #Save
-  write_csv("publication/TableS4.gene.counts.csv")
+  write_csv("publication/TableS3.gene.counts.csv")
 
 #### Log2 CPM modules ####
 attach("data_clean/P337_BAL_module_data.RData")
@@ -51,7 +51,7 @@ mod.voom %>%
   mutate(module = gsub("P337_","",module),
          module = gsub(".pct","",module)) %>% 
   #Save
-  write_csv("publication/TableS7.module.counts.csv")
+  write_csv("publication/TableS6.module.counts.csv")
 
 #### Library metadata ####
 dat.BAL.abund.norm.voom$targets %>% 
@@ -62,7 +62,7 @@ dat.BAL.abund.norm.voom$targets %>%
   rename(type=group, batch=flow_cell, TMM_norm_factor=norm.factors,
          EOS_percent=EOS.pct, PMN_percent=PMN.pct) %>% 
   mutate(visit = recode(visit, "V4"="pre", "V5"="post")) %>% 
-  write_csv("publication/TableS3.RNAseq.library.metadata.csv")
+  write_csv("publication/TableS2.RNAseq.library.metadata.csv")
 
 #### Gene linear models ####
 gene.visit <- read_csv("results/gene_level/P337_BAL_gene_visit.csv") %>% 
@@ -162,3 +162,12 @@ filter(read_csv("results/enrichment/enrich_sPLS_H.csv"),
   rename(`SPLS genes in term (k)`=size.overlap.term, `total genes in term (K)`=size.term,
          term=Description, FDR=p.adjust) %>% 
   write_csv("publication/TableS8.enrichment.csv")
+
+#### Patient metadata ####
+
+meta <- dat.BAL.abund.norm.voom$targets %>% 
+  distinct(donorID, age_mo, race, bmi, sex, INR, PTT)
+
+"FEV1.screening.WLAC"        "FEV1.PP"                    "FEV1.drop.from.diluent"    
+[37] "FEV1.pctPP.preAlbuterol_V4" "FEV1.pctPP.preAlbuterol_V5" "FEV1.pct.rev_V4"           
+[40] "FEV1.pct.rev_V5"            "FeNO.PreBro_V4"             "FeNO.PreBro_V5"            
