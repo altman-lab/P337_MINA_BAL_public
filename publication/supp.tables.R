@@ -114,16 +114,17 @@ read_csv("results/PLS/pearson.correlation.csv") %>%
   arrange(SPLS_selected) %>% 
   write_csv("publication/TableS9.Pearson.correlation.csv")
 
-#### ELISA ####
+#### Log10 ELISA ####
 
 read_csv("data_raw/addtl.data/P337_BAL.multiplex.csv") %>% 
   pivot_longer(-ptID) %>% 
+  mutate(value = log10(value)) %>% 
   separate(name, into=c("name","visit")) %>% 
   mutate(visit = recode(visit, "V4"="pre","V5"="post")) %>% 
   rename(donorID=ptID) %>% 
   pivot_wider() %>% 
   arrange(donorID, desc(visit)) %>% 
-  write_csv("publication/TableS5.ELISA.csv")
+  write_csv("publication/TableS4.ELISA.csv")
 
 #### Enrichment ####
 filter(read_csv("results/enrichment/enrich_sPLS_H.csv"), 
