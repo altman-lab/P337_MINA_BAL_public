@@ -245,7 +245,7 @@ dat.BAL.abund.norm.voom.visit$genes <- as.data.frame(dat.BAL.abund.norm.voom.vis
 
 ## Linear model: Cell percentages
 
-Each sample contains eosinophil (EOS), epithelial (Epi), lymphocyte (LYM), monocyte (MONO), and polymorphonuclear leukocyte (PMN) cells to 100%. 
+Each sample contains eosinophil (EOS), epithelial (Epi), lymphocyte (LYM), monocyte (MONO), and neutrophil (NEUT) cells to 100%. 
 
 ```{r echo=FALSE}
 #Plot cell percentages per sample
@@ -261,7 +261,7 @@ dat.BAL.abund.norm.voom$targets %>%
   labs(x="", y="Percent of total cells")
 ```
 
-Here, we create targeted modules for EOS and PMN cells.
+Here, we create targeted modules for EOS and NEUT cells.
 
 #### EOS
 
@@ -300,12 +300,12 @@ write_csv(P337_BAL_gene_EOS,
           file = "results/gene_level/P337_BAL_gene_EOS.csv")
 ```
 
-#### PMN
+#### NEUT
 
 ```{r}
 # Define model
-model <- model.matrix(~PMN.pct, data=dat.BAL.abund.norm.voom.visit$targets)
-  colnames(model) <- c("(Intercept)", "PMN.pct")
+model <- model.matrix(~NEUT.pct, data=dat.BAL.abund.norm.voom.visit$targets)
+  colnames(model) <- c("(Intercept)", "NEUT.pct")
   
 #Block by donor
 consensus.corr <- duplicateCorrelation(
@@ -328,14 +328,14 @@ efitQW <- eBayes(
 extract.pval(model=model,
              voom.dat=dat.BAL.abund.norm.voom.visit$E, 
              eFit=efitQW, 
-             name="P337_BAL_gene_PMN",
+             name="P337_BAL_gene_NEUT",
              summary=TRUE,
              contrasts=FALSE,
              FC.group = TRUE)
 
 #Write to disk
-write_csv(P337_BAL_gene_PMN,
-          file = "results/gene_level/P337_BAL_gene_PMN.csv")
+write_csv(P337_BAL_gene_NEUT,
+          file = "results/gene_level/P337_BAL_gene_NEUT.csv")
 ```
 
 ### Summarize cell percentage models
@@ -344,14 +344,14 @@ write_csv(P337_BAL_gene_PMN,
 #Combine cell pct results
 P337_gene_cells <- data.frame()
 
-for(pval in ls(pattern = "[EOS|PMN]$")){
+for(pval in ls(pattern = "[EOS|NEUT]$")){
   pval.temp <- get(pval)
   P337_gene_cells <- bind_rows(P337_gene_cells, pval.temp)
 }
 
 P337_gene_cells.summ <- data.frame()
 
-for(summary in ls(pattern = "[EOS|PMN].summ")){
+for(summary in ls(pattern = "[EOS|NEUT].summ")){
   summ.temp <- get(summary) %>% 
     filter(group != "total (nonredundant)")
   P337_gene_cells.summ <- bind_rows(P337_gene_cells.summ, summ.temp)
@@ -405,7 +405,7 @@ ggplot(aes(x=AveExpr, y=logFC, color=col.group)) +
 #Define FDR cutoffs to assess
 fdr.cutoff <- c(0.2,0.3,0.4)
 #List cell types to plot
-cell.types <- c("EOS.pct","PMN.pct")
+cell.types <- c("EOS.pct","NEUT.pct")
 
 par(mfrow = c(1, 3))
 
@@ -478,7 +478,7 @@ Increasing the FDR cutoff assigns more genes to cell types but increases multi-t
 ### Select cell specific genes
 
 ```{r}
-for(cell in c("EOS.pct","PMN.pct")){
+for(cell in c("EOS.pct","NEUT.pct")){
   #List significant genes
   genes.signif.cell <- P337_gene_cells %>% 
     filter(group == cell & FC.group == "up" & adj.P.Val <= visit.fdr.cutoff) %>% 
@@ -505,7 +505,7 @@ The standard R-squared soft thresholding minimum of 0.8 was used for all module 
 ```{r results=FALSE, message=FALSE, warning=FALSE}
 mod.param <- data.frame()
 
-for(cell in c("EOS.pct","PMN.pct")){
+for(cell in c("EOS.pct","NEUT.pct")){
   #Set parameters
   deepSplit <- 2
   minModuleSize <- 50
@@ -748,7 +748,7 @@ ggplot(aes(x=AveExpr, y=logFC, color=col.group, shape=group)) +
 Boxplots of mean module gene expression.
 
 ```{r message=FALSE, results=FALSE, warning=FALSE}
-for(mod.group in c("EOS.pct","PMN.pct")){
+for(mod.group in c("EOS.pct","NEUT.pct")){
   print(mod.group)
   #Set dirs
   mod.fig.dir <- list.files(path = "figs/module_level",

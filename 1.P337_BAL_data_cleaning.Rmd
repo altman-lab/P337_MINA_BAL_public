@@ -24,7 +24,7 @@ library(tidyverse)
   # Modify ggplot figures to non-overlapping text labels
   library(ggrepel)
   # Modify ggplot data order within facets
-  library(drlib)
+  library(drlib) #dgrtwo/drlib
   # Plot log scales
   library(scales)
   #Multi-panel figures
@@ -130,7 +130,9 @@ cell.pct <-  cells %>%
   mutate(cell = paste(cell,"pct",sep=".")) %>% 
   pivot_wider(names_from = cell, values_from = pct) %>%  
   mutate(across(c(EOS.pct, LYM.pct, PMN.pct, MONO.pct), 
-                ~.*(100-Epi.pct)/100))
+                ~.*(100-Epi.pct)/100)) %>% 
+  #Clean PMN name
+  rename(NEUT.pct=PMN.pct)
 
 #Save
 write_csv(cell.pct, "data_clean/P337_BAL_cell_pcts.csv")
