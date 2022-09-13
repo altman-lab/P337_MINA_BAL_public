@@ -58,9 +58,9 @@ dat.BAL.abund.norm.voom$targets %>%
   select(libID, norm.factors, 
          donorID, visit, group, flow_cell,
          total_sequences, median_cv_coverage, mapped_reads_w_dups, 
-         EOS.pct, PMN.pct) %>% 
+         EOS.pct, NEUT.pct) %>% 
   rename(type=group, batch=flow_cell, TMM_norm_factor=norm.factors,
-         EOS_percent=EOS.pct, PMN_percent=PMN.pct) %>% 
+         EOS_percent=EOS.pct, NEUT_percent=NEUT.pct) %>% 
   mutate(visit = recode(visit, "V4"="pre", "V5"="post")) %>% 
   write_csv("publication/TableS2.RNAseq.library.metadata.csv")
 
@@ -77,11 +77,11 @@ gene.EOS <- read_csv("results/gene_level/P337_BAL_gene_EOS.csv") %>%
   select(geneName, logFC, adj.P.Val) %>% 
   rename(EOS_logFC=logFC, EOS_FDR=adj.P.Val)
 
-gene.PMN <- read_csv("results/gene_level/P337_BAL_gene_PMN.csv") %>% 
-  filter(group == "PMN.pct") %>% 
+gene.NEUT <- read_csv("results/gene_level/P337_BAL_gene_NEUT.csv") %>% 
+  filter(group == "NEUT.pct") %>% 
   #Rename specific to this model
   select(geneName, logFC, adj.P.Val) %>% 
-  rename(PMN_logFC=logFC, PMN_FDR=adj.P.Val)
+  rename(NEUT_logFC=logFC, NEUT_FDR=adj.P.Val)
 
 #Module assignment
 mod <- mod.genes %>% 
@@ -89,13 +89,13 @@ mod <- mod.genes %>%
   #Clean module names
   mutate(module = gsub("P337_","",module),
          module = gsub(".pct","",module)) %>% 
-  #separate EOS and PMN modules
+  #separate EOS and NEUT modules
   mutate(name = ifelse(grepl("EOS", module), "EOS_module",
-                        ifelse(grepl("PMN", module), "PMN_module", NA))) %>% 
+                        ifelse(grepl("NEUT", module), "NEUT_module", NA))) %>% 
   pivot_wider(values_from = module)
 
 model.result <- full_join(gene.visit, gene.EOS) %>% 
-  full_join(gene.PMN) %>% 
+  full_join(gene.NEUT) %>% 
   #add module assignment and HGNC
   full_join(mod) %>% 
   rename(ENSEMBL=geneName) %>% 
@@ -103,7 +103,7 @@ model.result <- full_join(gene.visit, gene.EOS) %>%
 
 #simplfy genes in modules lists
 temp <- model.result %>% 
-  select(hgnc_symbol, EOS_module, PMN_module) %>% 
+  select(hgnc_symbol, EOS_module, NEUT_module) %>% 
   pivot_longer(-hgnc_symbol) %>% 
   drop_na(value)
 
@@ -149,25 +149,25 @@ read_csv("data_raw/addtl.data/P337_BAL.multiplex.csv") %>%
 
 #### Enrichment ####
 filter(read_csv("results/enrichment/enrich_sPLS_H.csv"), 
-       p.adjust<=0.2) %>% 
+       FDR<=0.2) %>% 
   bind_rows(filter(read_csv("results/enrichment/enrich_sPLS_C2_CP.csv"),
-                   p.adjust<=0.05)) %>% 
+                   FDR<=0.05)) %>% 
   bind_rows(filter(read_csv("results/enrichment/enrich_sPLS_C5_GO.BP.csv"), 
-                   p.adjust<=0.05)) %>% 
+                   FDR<=0.05)) %>% 
   bind_rows(filter(read_csv("results/enrichment/enrich_sPLS_C7.csv"), 
-                   p.adjust<=0.03)) %>% 
-  arrange(category, p.adjust) %>% 
-  select(category, subcategory, Description, size.overlap.term, 
-         size.term, p.adjust, SYMBOLs) %>% 
-  rename(`SPLS genes in term (k)`=size.overlap.term, `total genes in term (K)`=size.term,
-         term=Description, FDR=p.adjust) %>% 
+                   FDR<=0.03)) %>% 
+  arrange(gs_cat, gs_subcat, FDR) %>% 
+  dplyr::select(gs_cat, gs_subcat, pathway, group_in_pathway, 
+         size_pathway, pval, FDR, genes) %>% 
+  rename(`SPLS genes in term (k)`=group_in_pathway, `total genes in term (K)`=size_pathway,
+         category=gs_cat, subcategory=gs_subcat, term=pathway) %>% 
   write_csv("publication/TableS8.enrichment.csv")
 
 #### Patient metadata ####
 
-meta <- dat.BAL.abund.norm.voom$targets %>% 
-  distinct(donorID, age_mo, race, bmi, sex, INR, PTT)
-
-"FEV1.screening.WLAC"        "FEV1.PP"                    "FEV1.drop.from.diluent"    
-[37] "FEV1.pctPP.preAlbuterol_V4" "FEV1.pctPP.preAlbuterol_V5" "FEV1.pct.rev_V4"           
-[40] "FEV1.pct.rev_V5"            "FeNO.PreBro_V4"             "FeNO.PreBro_V5"            
+read_excel("data_raw/addtl.data/2022-08_Patient_metadata.xlsx") %>% 
+  rename(donorID=id, age_months=age.months, sex=Sex, bmi=BMI, 
+         FEV1_PP=`Pre-albuterol_FEV1_%_predicted`,
+         `FEV1/FVC`=`Pre-albuterol_FEV1/FVC`) %>% 
+  select(-age.years) %>% 
+  write_csv("publication/TableS1.patient.csv")

@@ -149,8 +149,8 @@ neuro.delta <- neuro %>%
 load("data_clean/P337_BAL_data.RData")
 
 cell.delta <- dat.BAL.abund.norm.voom$targets %>% 
-  select(visit, donorID, EOS.pct, PMN.pct) %>% 
-  pivot_longer(EOS.pct:PMN.pct) %>% 
+  select(visit, donorID, EOS.pct, NEUT.pct) %>% 
+  pivot_longer(EOS.pct:NEUT.pct) %>% 
   pivot_wider(names_from = visit) %>% 
   mutate(delta=V5-V4) %>% 
   select(-V4, -V5) %>% 
@@ -201,10 +201,10 @@ X <- neuro.delta %>%
   full_join(cell.delta) %>% 
   full_join(mod.delta) %>% 
   full_join(plex.delta) %>% 
-  rename(`BAL EOS 02`=EOS02, `EOS %`=EOS.pct, `PMN %`=PMN.pct) %>% 
+  rename(`BAL EOS 02`=EOS02, `EOS %`=EOS.pct, `NEUT %`=NEUT.pct) %>% 
   rename_all(~gsub("_"," ",.)) %>% 
   #order Y
-  select(donorID, #`EOS %`, `PMN %`,
+  select(donorID, #`EOS %`, `NEUT %`,
          `FLT3LG`,`IL-17A`,`BAL EOS 02`,`G-CSF`,`IL-10`,
          `PDGF-AA`,`CCL27`,`IFN-A2`,`GM-CSF`,`CCL21`,
          `TGF-A`,`CCL26`,`IL-23`,`CCL7`,`CXCL1`,`IL-16`,

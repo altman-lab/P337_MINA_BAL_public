@@ -153,7 +153,7 @@ cor.arrange <- as.data.frame(cor.result$P) %>%
   #cell labels
   mutate(cell.lab = recode(X_variable,
                            "EOS %"="eosinophil",
-                           "PMN %"="PMN",
+                           "PMN %"="neutrophil",
                            "LYM %"="lymphocyte",
                            "MONO %"="monocyte",
                            "Epi %"="epithelial"))

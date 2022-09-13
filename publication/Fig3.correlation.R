@@ -49,8 +49,8 @@ plex <- read_csv("data_raw/addtl.data/P337_BAL.multiplex.csv") %>%
 load("data_clean/P337_BAL_data.RData")
 
 cell <- dat.BAL.abund.norm.voom$targets %>% 
-  select(visit, donorID, EOS.pct, PMN.pct) %>% 
-  pivot_longer(EOS.pct:PMN.pct)
+  select(visit, donorID, EOS.pct, NEUT.pct) %>% 
+  pivot_longer(EOS.pct:NEUT.pct)
 
 #### IL17A AND EOS MODULE 02 ####
 #### plots ####
