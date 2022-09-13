@@ -14,7 +14,7 @@ editor_options:
 
 # Background
 
-The purpose of this workflow is to associate gene module expression (EOS, PMN) with host outcomes including:
+The purpose of this workflow is to associate gene module expression (EOS, NEUT) with host outcomes including:
 
 * fMRI
 * Lung function / asthma
@@ -28,7 +28,6 @@ Load packages
 # Data manipulation and figures
 library(tidyverse)
 library(readxl)
-library(cowplot)
 library(tidytext)
 # RNAseq data
 library(limma)
@@ -36,7 +35,8 @@ library(limma)
 library(corrplot)
 #PLS
 library(mixOmics)
-# Print tty table to knit file
+##  Be careful of version as this package if often not back compatible
+# Print pretty table to knit file
 library(knitr)
 library(kableExtra)
 options(knitr.kable.NA = '')
@@ -163,10 +163,10 @@ table(cyto.rename$gene %in% key$hgnc_symbol)
 ```
 
 ```{r echo=FALSE, message=FALSE}
-#genes in modules, PMN
-temp <- read_csv("results/module_level/module_P337_BAL_PMN.pct_deepSplit2_minMod50/P337_BAL_PMN.pct_genes_in_mod.csv") %>% 
+#genes in modules, NEUT
+temp <- read_csv("results/module_level/module_P337_BAL_NEUT.pct_deepSplit2_minMod50/P337_BAL_NEUT.pct_genes_in_mod.csv") %>% 
   inner_join(cyto.rename, c("hgnc_symbol"="gene")) %>% 
-  mutate(module = paste("PMN", module.char, sep="_")) %>% 
+  mutate(module = paste("NEUT", module.char, sep="_")) %>% 
   dplyr::select(module, hgnc_symbol, cyto) %>% 
   arrange(module, cyto)
 
