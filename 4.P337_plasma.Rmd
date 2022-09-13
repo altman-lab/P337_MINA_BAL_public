@@ -1,0 +1,492 @@
+---
+title: "P337: Targeted plasma analyses"
+author: "Kim Dill-McFarland, kadm@uw.edu"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 4
+    toc_float:
+      collapsed: no
+date: "version `r format(Sys.time(), '%B %d, %Y')`"
+editor_options: 
+  chunk_output_type: console
+---
+
+# Background
+
+The purpose of this workflow is to explore possible mechanisms for the impact of lung inflammation on neural activity through targeted biomarkers in blood plasma.
+
+# Setup
+
+Load packages
+
+```{r message=FALSE, warning=FALSE}
+# Data manipulation and figures
+library(tidyverse)
+library(readxl)
+# Print pretty table to knit file
+library(knitr)
+library(kableExtra)
+options(knitr.kable.NA = '')
+
+`%notin%` <- Negate(`%in%`)
+```
+
+Set seed
+
+```{r}
+set.seed(4389)
+```
+
+# Data
+
+## Calculate V5 - V4
+
+When applicable, correlations will be completed for delta values (V5-V4) to capture the paired nature of these data.
+
+#### Module expression
+
+Two donors are removed from BE expression data (MA1001 missing V4, MA1086 missing V5).
+
+```{r message=FALSE}
+load("data_clean/P337_BAL_data.RData")
+
+#Read in all module expression
+mod.files <- list.files(path="results/module_level/", pattern="mod_voom_counts",
+                        recursive = TRUE, full.names = TRUE)
+
+counts.mod <- data.frame()
+for(file in mod.files){
+  counts.temp <- read_csv(file) %>% 
+    pivot_longer(-c(module,module.char), names_to="libID")
+  
+  counts.mod <- rbind(counts.mod, counts.temp)
+}
+
+#Calculate delta
+counts.mod.delta <- counts.mod %>% 
+  #Remove modules 00
+  filter(!grepl("_00",module)) %>% 
+  dplyr::select(-module.char) %>% 
+  #Add metadata to denote V4, V5
+  full_join(dplyr::select(dat.BAL.abund.norm.voom$targets, 
+                   libID, donorID, visit), by = "libID") %>% 
+  #separate V4 and V5
+  dplyr::select(-libID) %>% 
+  pivot_wider(names_from = visit) %>% 
+  mutate(delta = V5-V4) %>% 
+  #shorten module names
+  mutate(module=gsub("module_P337_", "", module)) %>% 
+  #wide format
+  dplyr::select(-V4,-V5) %>% 
+  arrange(donorID, module) %>% 
+  pivot_wider(names_from = module, values_from = delta)
+```
+
+#### Genes in modules
+
+```{r}
+mod.key <- read_csv("results/module_level/module_P337_BAL_EOS.pct_deepSplit2_minMod50/P337_BAL_EOS.pct_genes_in_mod.csv")
+```
+
+#### Cytokine protein
+
+```{r message=FALSE}
+plex.delta <- read_csv("data_raw/addtl.data/P337_BAL.multiplex.csv") %>% 
+  rename(donorID=ptID, FGF2_V4=TGF2_V4) %>% 
+  pivot_longer(-donorID) %>% 
+  #Log10 transform
+  mutate(value = log10(value)) %>% 
+  separate(name, into=c("name","visit"), sep="_") %>% 
+  pivot_wider(names_from = visit) %>% 
+  mutate(delta = V5-V4) %>% 
+  drop_na(delta) %>% 
+  dplyr::select(-V4,-V5) %>% 
+  arrange(name) %>% 
+  mutate(name = paste(name, "multiplex", sep=".")) %>% 
+  pivot_wider(values_from = delta) 
+```
+
+Check if cytokine genes are in expression modules as well.
+
+```{r include=FALSE}
+#List cytokines in multiplex data
+cyto <- data.frame(cyto = gsub(".multiplex","", colnames(plex.delta)[-1]))
+
+#Find cytokine gene names
+key <- read_tsv("data_raw/EnsemblToHGNC_GRCh38.txt")
+#cyto %>% filter(cyto %notin% key$hgnc_symbol)
+
+#change to gene names where needed
+cyto.rename <- cyto %>% 
+  mutate(gene = recode(cyto,
+                       "FLT3L"="FLT3LG",
+                       "GCSF"="CSF3",
+                       "GMCSF"="CSF2",
+                       "IL12p70"="IL12A_IL12B",
+                       "IL1RA"="IL1RN",
+                       "IL23"="IL23A",
+                       "IL8"="CXCL8",
+                       "IP10"="CXCL10",
+                       "PDGFAA"="PDGFA",
+                       "PDGFAB"="PDGFA_PDGFB",
+                       "RANTES"="CCL5",
+                       "sCD40L"="CD40LG",
+                       "TARC"="CCL17",
+                       "TNFA"="TNF",
+                       "TNFB"="LTA",
+                       "VEGF"="VEGFA_VEGFB_VEGFC")) %>% 
+  #Unnest multi-annotations
+  separate(gene, into=c("a","b","c"), sep="_") %>% 
+  pivot_longer(a:c, values_to = "gene") %>% 
+  drop_na(gene) %>% 
+  dplyr::select(-name)
+
+#Check all renamed cytokines in key
+table(cyto.rename$gene %in% key$hgnc_symbol)
+```
+
+#### fMRI
+
+Donor MA1012 is removed due to movement issues in fMRI.
+
+```{r message=FALSE}
+#Time point 1 = visit 4
+neuro <- read_excel(sheet="T1",
+  "data_raw/addtl.data/extraced.clusters.Matt.Altman_wbaseline_psychdata.xlsx") %>% 
+  #long format
+  pivot_longer(-idnum, names_to="neuro") %>% 
+  #add visit variable
+  mutate(visit="V4")
+
+#Time point 2 = visit 5
+neuro <- read_excel(sheet="T2",
+  "data_raw/addtl.data/extraced.clusters.Matt.Altman_wbaseline_psychdata.xlsx") %>% 
+  #long format
+  pivot_longer(-idnum, names_to="neuro") %>% 
+  #add visit variable
+  mutate(visit="V5") %>% 
+  #Combine with other visit
+  full_join(neuro) %>% 
+  #Format idnum to match RNAseq data
+  mutate(idnum = paste("MA",idnum, sep="")) %>% 
+  rename(donorID=idnum)
+
+neuro.delta <- neuro %>% 
+  filter(donorID != "MA1012" & neuro != "LSI" & neuro != "BDI") %>% 
+  #Calculate delta
+  pivot_wider(names_from = visit) %>% 
+  mutate(delta = V5-V4) %>% 
+  #remove fxnal metrics
+  filter(!grepl("3way",neuro) & !grepl("LPR", neuro)) %>% 
+  #fix name
+  mutate(neuro = gsub("amgy","amyg",neuro)) %>% 
+  #wide format
+  dplyr::select(-V4,-V5) %>% 
+  pivot_wider(names_from = neuro, values_from = delta) 
+```
+
+#### Plasma biomarkers
+
+```{r}
+plasma <- read_excel("data_raw/addtl.data/Phase1.biomarkers.prepost.xls", sheet=1, 
+                     col_types = c("text","text","numeric","numeric","numeric")) %>% 
+  pivot_longer(-c(id,visit)) %>% 
+  pivot_wider(names_from = visit) %>% 
+  mutate(delta=post-pre) %>% 
+  #Recode ID
+  mutate(donorID=paste0("MA",id)) %>% 
+  select(-pre,-post, -id) %>% 
+  pivot_wider(values_from = delta) %>% 
+  drop_na()
+
+hist(plasma$NfL)
+hist(plasma$GFAP)
+hist(plasma$pTAU)
+
+#remove outlier
+plasma <- plasma %>% 
+  mutate(NfL = ifelse(NfL < -30, NA, NfL))
+
+hist(plasma$NfL)
+```
+
+## sPLS significant variables
+
+```{r}
+attach("results/PLS/SPLS.RData")
+
+#### Loadings ####
+loadX <- as.data.frame(result.spls$loadings$X) %>% 
+  rownames_to_column("var") %>% 
+  mutate(space="X")
+loadY <- as.data.frame(result.spls$loadings$Y) %>% 
+  rownames_to_column("var")%>% 
+  mutate(space="Y")
+
+loadXY <- bind_rows(loadY, loadX) %>% 
+  pivot_longer(comp1:comp2, names_to = "comp") %>% 
+  filter(value != 0) %>% 
+  mutate(var = gsub(" ", "_", var)) #%>% 
+  #fix protein names
+  # mutate(var = gsub("^IL","IL-",var),
+  #        var = recode(var,
+  #                     "FLT3L"="FLT3LG",
+  #                     "TGFA"="TGF-A",
+  #                     "GCSF"="G-CSF",
+  #                     "PDGFAA"="PDGF-AA",
+  #                     "IFNA2"="IFN-A2",
+  #                     "GMCSF"="GM-CSF"))
+```
+
+Combine all predictors. Filter to sPLS significant
+
+```{r}
+meta <- counts.mod.delta %>% 
+  filter(donorID %in% neuro.delta$donorID) %>% 
+  rename_all(~gsub(".pct","",.)) %>% 
+  full_join(plex.delta) %>% 
+  rename_all(~gsub(".multiplex","",.)) %>%
+  full_join(neuro.delta) %>% 
+  filter(donorID %in% plasma$donorID) %>% 
+  arrange(donorID) %>% 
+  dplyr::select(donorID, all_of(loadXY$var))
+
+counts <- plasma %>% 
+  filter(donorID %in% meta$donorID) %>%
+  arrange(donorID) %>% 
+  column_to_rownames("donorID") %>% 
+  t()
+
+##Keep genes in signif modules separate
+counts.gene <- as.data.frame(dat.BAL.abund.norm.voom$E) %>% 
+  rownames_to_column("geneName") %>% 
+  filter(geneName %in% filter(mod.key, module.char == "02")$geneName) %>% 
+  left_join(dat.BAL.abund.norm.voom$genes) %>% 
+  dplyr::select(hgnc_symbol, contains("lib")) %>% 
+  #delta
+  pivot_longer(-hgnc_symbol, names_to = "libID") %>% 
+  full_join(dplyr::select(dat.BAL.abund.norm.voom$targets, 
+                          libID, donorID, visit)) %>% 
+  dplyr::select(-libID) %>% 
+  pivot_wider(names_from = visit) %>% 
+  mutate(delta = V5-V4) %>% 
+  dplyr::select(-V4,-V5) %>% 
+  filter(donorID %in% meta$donorID) %>% 
+  arrange(donorID) %>% 
+  pivot_wider(names_from = donorID, values_from = delta) %>% 
+  column_to_rownames("hgnc_symbol")
+```
+
+# Linear model
+
+```{r}
+library(kimma)
+
+lm.result <- data.frame()
+for(var in colnames(meta)[-1]){
+  temp <- kmFit(counts = counts, meta = meta, 
+                patientID = "donorID", libraryID = "donorID",
+                  model=paste0("~",var), run.lm = TRUE)$lm
+  lm.result <- bind_rows(lm.result, temp)
+}
+```
+
+```{r}
+lm.result.format <- lm.result %>% 
+  filter(variable != "(Intercept)") %>% 
+  group_by(model, gene) %>% 
+  mutate(FDR = p.adjust(pval, method = "BH"))
+
+lm.signif <- lm.result.format %>% 
+  filter(FDR<0.5)
+lm.signif
+```
+
+```{r}
+as.data.frame(t(counts)) %>% 
+  rownames_to_column("donorID") %>% 
+  full_join(meta) %>% 
+  select(donorID, all_of(lm.signif$gene), all_of(lm.signif$variable)) %>% 
+  pivot_longer(-c(donorID, lm.signif$gene)) %>% 
+  
+  ggplot() +
+  aes(x=value, y=NfL) +
+  geom_point() +
+  geom_smooth(se=FALSE, method = "lm") +
+  theme_classic() +
+  facet_wrap(~name, scales="free")
+```
+
+# Correlation
+
+```{r}
+library(Hmisc)
+library(corrplot)
+cor.result <- rcorr(t(counts), as.matrix(column_to_rownames(meta, "donorID")))
+cor.result2 <- rcorr(t(counts[,colnames(counts.gene)]), t(counts.gene))
+```
+
+```{r}
+corrplot(cor.result$r[-c(1:3),1:3], p.mat = cor.result$P[-c(1:3),1:3], 
+         method = "color", col = rev(COL2('RdBu', 20)), diag = FALSE, 
+         sig.level = c(0.05, 0.1), pch.cex = 0.9,
+         insig = 'label_sig', pch.col = 'grey20', 
+         title = "**P < 0.05   *P < 0.1", tl.col = "black",
+         cl.ratio=0.5, mar = c(0,0,3,0))
+```
+```{r}
+#genes with at least 1 |R| > 0.4
+P.temp <- as.data.frame(cor.result2$P[-c(1:3),1:3]) %>% 
+  rownames_to_column() %>% 
+  rowwise() %>% 
+  mutate(minP = min(abs(NfL), abs(GFAP), abs(pTAU))) %>% 
+  filter(minP <= 0.05) %>% 
+  dplyr::select(-minP) %>% 
+  column_to_rownames() %>% 
+  as.matrix()
+
+R.temp <- as.data.frame(cor.result2$r[-c(1:3),1:3]) %>% 
+  rownames_to_column() %>% 
+  filter(rowname %in% rownames(P.temp)) %>% 
+  column_to_rownames() %>% 
+  as.matrix()
+
+corrplot(R.temp, p.mat = P.temp, 
+         method = "color", col = rev(COL2('RdBu', 20)), diag = FALSE, 
+         sig.level = c(0.01, 0.05), pch.cex = 0.9,
+         insig = 'label_sig', pch.col = 'grey20', 
+         title = "**P < 0.01    *P < 0.05", tl.col = "black",
+         cl.ratio=0.5, mar = c(0,0,3,0))
+```
+
+```{r include=FALSE}
+dir.create("figs/plasma", showWarnings = FALSE)
+png(file = "figs/plasma/pearson.plasma.png",
+    height = 6, width=3, units = "in", res=150)
+
+corrplot(cor.result$r[,1:3], p.mat = cor.result$P[,1:3], 
+         method = "color", col = rev(COL2('RdBu', 20)), diag = FALSE, 
+         sig.level = c(0.05, 0.1), pch.cex = 0.9,
+         insig = 'label_sig', pch.col = 'grey20', 
+         title = "**P < 0.05   *P < 0.1", tl.col = "black",
+         cl.ratio=0.5, mar = c(0,0,3,0))
+
+dev.off()
+```
+
+```{r}
+p.temp <- as.data.frame(cor.result$P[,1:3]) %>% 
+  rownames_to_column("x") %>% 
+  pivot_longer(-x, names_to = "y", values_to = "pval")
+  
+  
+to.plot <- data.frame(
+  y = c("NfL","NfL","GFAP","pTAU","pTAU","pTAU","pTAU"),
+  x = c("L_vA_insula","pACC","dACC","R_dA_insula","L_dA_insula","L_HO_amyg","FLT3L")) %>% 
+  left_join(p.temp)
+
+plot1 <- as.data.frame(t(counts)) %>% 
+  rownames_to_column("donorID") %>% 
+  pivot_longer(-donorID, names_to = "y",values_to = "y_value") %>% 
+  full_join(meta) %>% 
+  pivot_longer(-c(donorID:y_value), names_to = "x", values_to = "x_value") %>% 
+  inner_join(to.plot) %>%
+  mutate(x = paste0("x = ", x, "\nPearson P = ", round(pval, digits=3)),
+         y = paste("y =", y)) %>% 
+  
+  ggplot() +
+  aes(x = x_value, y = y_value) +
+  geom_point() +
+  geom_smooth(se=FALSE, method = "lm") +
+  theme_classic() +
+  facet_wrap(y~x, scales="free") +
+  labs(x = "Post - Pre x\nmodule, cytokine, or fMRI",
+       y = "Post - Pre y\nbiomarker")
+plot1
+
+ggsave("figs/plasma/pearson.plasma.dotplot.png", plot1, width=9, height=9)
+```
+
+# Mediation
+
+```{r}
+library(mediation)
+```
+
+FLT3L -> pTAU -> L dA insula
+
+```{r}
+dat.all <- as.data.frame(t(counts)) %>% 
+  rownames_to_column("donorID") %>% 
+  full_join(meta) %>% 
+  dplyr::select(donorID, L_dA_insula, FLT3L, pTAU) %>% 
+  drop_na()
+
+fit.totaleffect <- lm(L_dA_insula ~ FLT3L, dat.all)
+summary(fit.totaleffect)
+
+fit.mediator <- lm(pTAU ~ FLT3L, dat.all)
+summary(fit.mediator)
+
+fit.dv <- lm(L_dA_insula ~ FLT3L + pTAU, dat.all)
+summary(fit.dv)
+
+results <- mediate(fit.mediator, fit.dv, 
+                  treat='FLT3L', mediator='pTAU', boot=TRUE)
+summary(results)
+```
+
+FLT3L -> pTAU -> L HO amyg
+
+```{r}
+dat.all <- as.data.frame(t(counts)) %>% 
+  rownames_to_column("donorID") %>% 
+  full_join(meta) %>% 
+  dplyr::select(donorID, L_HO_amyg, FLT3L, pTAU) %>% 
+  drop_na()
+
+fit.totaleffect <- lm(L_HO_amyg ~ FLT3L, dat.all)
+summary(fit.totaleffect)
+
+fit.mediator <- lm(pTAU ~ FLT3L, dat.all)
+summary(fit.mediator)
+
+fit.dv <- lm(L_HO_amyg ~ FLT3L + pTAU, dat.all)
+summary(fit.dv)
+
+results <- mediate(fit.mediator, fit.dv, 
+                  treat='FLT3L', mediator='pTAU', boot=TRUE)
+summary(results)
+```
+
+FLT3L -> pTAU -> R dA insula
+
+```{r}
+dat.all <- as.data.frame(t(counts)) %>% 
+  rownames_to_column("donorID") %>% 
+  full_join(meta) %>% 
+  dplyr::select(donorID, R_dA_insula, FLT3L, pTAU) %>% 
+  drop_na()
+
+fit.totaleffect <- lm(R_dA_insula ~ FLT3L, dat.all)
+summary(fit.totaleffect)
+
+fit.mediator <- lm(pTAU ~ FLT3L, dat.all)
+summary(fit.mediator)
+
+fit.dv <- lm(R_dA_insula ~ FLT3L + pTAU, dat.all)
+summary(fit.dv)
+
+results <- mediate(fit.mediator, fit.dv, 
+                  treat='FLT3L', mediator='pTAU', boot=TRUE)
+summary(results)
+```
+
+# R session
+
+```{r}
+sessionInfo()
+```
+
+***
