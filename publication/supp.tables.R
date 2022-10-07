@@ -4,6 +4,55 @@ library(readxl)
 library(openxlsx)
 `%notin%` <- Negate(`%in%`)
 
+#### Patient metadata ####
+meta1 <- read_excel("data_raw/addtl.data/2022-08_Patient_metadata.xlsx") %>% 
+  rename(donorID=id, age_months=age.months, sex=Sex, bmi=BMI, 
+         FEV1_PP=`Pre-albuterol_FEV1_%_predicted`,
+         `FEV1/FVC`=`Pre-albuterol_FEV1/FVC`) %>% 
+  select(-age.years)
+
+#### Library metadata ####
+meta2 <- dat.BAL.abund.norm.voom$targets %>% 
+  select(libID, norm.factors, 
+         donorID, visit, group, flow_cell,
+         total_sequences, median_cv_coverage, mapped_reads_w_dups, 
+         EOS.pct, NEUT.pct) %>% 
+  rename(type=group, batch=flow_cell, TMM_norm_factor=norm.factors,
+         EOS_percent=EOS.pct, NEUT_percent=NEUT.pct) %>% 
+  mutate(visit = recode(visit, "V4"="pre", "V5"="post"))
+
+#### Table S1 ####
+write.xlsx(list("patient"=meta1, "rnaseq"=meta2), 
+           file = "publication/TableS1.metadata.xlsx")
+
+#### Log2 CPM genes ####
+attach("data_clean/P337_BAL_data.RData")
+
+gene <- as.data.frame(dat.BAL.abund.norm.voom$E) %>% 
+  #Add HGNC names
+  rownames_to_column("geneName") %>% 
+  left_join(dat.BAL.abund.norm.voom$genes) %>% 
+  select(geneName,hgnc_symbol, everything(), -gene_biotype) %>% 
+  rename(ENSEMBL=geneName)
+
+#### Log10 ELISA ####
+elisa <- read_csv("data_raw/addtl.data/P337_BAL.multiplex.csv") %>% 
+  pivot_longer(-ptID) %>% 
+  mutate(value = log10(value)) %>% 
+  separate(name, into=c("name","visit")) %>% 
+  mutate(visit = recode(visit, "V4"="pre","V5"="post")) %>% 
+  rename(donorID=ptID) %>% 
+  pivot_wider() %>% 
+  arrange(donorID, desc(visit)) 
+
+#### Log2 CPM modules ####
+attach("data_clean/P337_BAL_module_data.RData")
+
+mod <- mod.voom %>% 
+  #Clean module names
+  mutate(module = gsub("P337_","",module),
+         module = gsub(".pct","",module))
+
 #### fMRI ####
 #Time point 1 = visit 4 = pre
 neuro <- read_excel(sheet="T1",
@@ -28,41 +77,9 @@ neuro <- read_excel(sheet="T2",
   select(donorID, visit, everything(), -idnum) %>% 
   arrange(donorID, visit) 
 
-neuro %>% 
-  write_csv("publication/TableS7.fMRI.csv")
-
-#### Log2 CPM genes ####
-attach("data_clean/P337_BAL_data.RData")
-
-as.data.frame(dat.BAL.abund.norm.voom$E) %>% 
-  #Add HGNC names
-  rownames_to_column("geneName") %>% 
-  left_join(dat.BAL.abund.norm.voom$genes) %>% 
-  select(geneName,hgnc_symbol, everything(), -gene_biotype) %>% 
-  rename(ENSEMBL=geneName) %>% 
-  #Save
-  write_csv("publication/TableS3.gene.counts.csv")
-
-#### Log2 CPM modules ####
-attach("data_clean/P337_BAL_module_data.RData")
-
-mod.voom %>% 
-  #Clean module names
-  mutate(module = gsub("P337_","",module),
-         module = gsub(".pct","",module)) %>% 
-  #Save
-  write_csv("publication/TableS6.module.counts.csv")
-
-#### Library metadata ####
-dat.BAL.abund.norm.voom$targets %>% 
-  select(libID, norm.factors, 
-         donorID, visit, group, flow_cell,
-         total_sequences, median_cv_coverage, mapped_reads_w_dups, 
-         EOS.pct, NEUT.pct) %>% 
-  rename(type=group, batch=flow_cell, TMM_norm_factor=norm.factors,
-         EOS_percent=EOS.pct, NEUT_percent=NEUT.pct) %>% 
-  mutate(visit = recode(visit, "V4"="pre", "V5"="post")) %>% 
-  write_csv("publication/TableS2.RNAseq.library.metadata.csv")
+##### Table S2 ####
+write.xlsx(list("gene"=gene, "protein"=elisa, "module"=mod, "fMRI"=neuro), 
+           file = "publication/TableS2.data.xlsx")
 
 #### Gene linear models ####
 gene.visit <- read_csv("results/gene_level/P337_BAL_gene_visit.csv") %>% 
@@ -84,20 +101,20 @@ gene.NEUT <- read_csv("results/gene_level/P337_BAL_gene_NEUT.csv") %>%
   rename(NEUT_logFC=logFC, NEUT_FDR=adj.P.Val)
 
 #Module assignment
-mod <- mod.genes %>% 
+mod.key <- mod.genes %>% 
   select(geneName, hgnc_symbol, module) %>% 
   #Clean module names
   mutate(module = gsub("P337_","",module),
          module = gsub(".pct","",module)) %>% 
   #separate EOS and NEUT modules
   mutate(name = ifelse(grepl("EOS", module), "EOS_module",
-                        ifelse(grepl("NEUT", module), "NEUT_module", NA))) %>% 
+                       ifelse(grepl("NEUT", module), "NEUT_module", NA))) %>% 
   pivot_wider(values_from = module)
 
 model.result <- full_join(gene.visit, gene.EOS) %>% 
   full_join(gene.NEUT) %>% 
   #add module assignment and HGNC
-  full_join(mod) %>% 
+  full_join(mod.key) %>% 
   rename(ENSEMBL=geneName) %>% 
   select(ENSEMBL, hgnc_symbol, everything())
 
@@ -119,36 +136,8 @@ gene.in.mod <- plyr::ldply(mod.ls, rbind) %>%
   column_to_rownames(".id") %>% 
   t() %>% as.data.frame()
 
-list_of_datasets <- list("model_results" = model.result, "genes_in_modules" = gene.in.mod)
-write.xlsx(list_of_datasets, file = "publication/TableS5.gene.linear.models.xlsx")
-
-#### Correlation Post-Pre ####
-#Add if selected by SPLS
-load("results/PLS/SPLS.RData")
-splsX <- as.data.frame(result.spls$loadings$X) %>% 
-  filter(comp1 != 0 | comp2 != 0)
-
-read_csv("results/PLS/pearson.correlation.csv") %>% 
-  mutate(SPLS_selected = ifelse(X_variable %in% rownames(splsX) |
-                                  X_variable == "module_BAL_EOS_02", "Y",NA)) %>% 
-  dplyr::select(X_variable, SPLS_selected, everything()) %>% 
-  arrange(SPLS_selected) %>% 
-  write_csv("publication/TableS9.Pearson.correlation.csv")
-
-#### Log10 ELISA ####
-
-read_csv("data_raw/addtl.data/P337_BAL.multiplex.csv") %>% 
-  pivot_longer(-ptID) %>% 
-  mutate(value = log10(value)) %>% 
-  separate(name, into=c("name","visit")) %>% 
-  mutate(visit = recode(visit, "V4"="pre","V5"="post")) %>% 
-  rename(donorID=ptID) %>% 
-  pivot_wider() %>% 
-  arrange(donorID, desc(visit)) %>% 
-  write_csv("publication/TableS4.ELISA.csv")
-
 #### Enrichment ####
-filter(read_csv("results/enrichment/enrich_sPLS_H.csv"), 
+enrich <- filter(read_csv("results/enrichment/enrich_sPLS_H.csv"), 
        FDR<=0.2) %>% 
   bind_rows(filter(read_csv("results/enrichment/enrich_sPLS_C2_CP.csv"),
                    FDR<=0.05)) %>% 
@@ -160,14 +149,21 @@ filter(read_csv("results/enrichment/enrich_sPLS_H.csv"),
   dplyr::select(gs_cat, gs_subcat, pathway, group_in_pathway, 
          size_pathway, pval, FDR, genes) %>% 
   rename(`SPLS genes in term (k)`=group_in_pathway, `total genes in term (K)`=size_pathway,
-         category=gs_cat, subcategory=gs_subcat, term=pathway) %>% 
-  write_csv("publication/TableS8.enrichment.csv")
+         category=gs_cat, subcategory=gs_subcat, term=pathway)
 
-#### Patient metadata ####
+#### Correlation Post-Pre ####
+#Add if selected by SPLS
+load("results/PLS/SPLS.RData")
+splsX <- as.data.frame(result.spls$loadings$X) %>% 
+  filter(comp1 != 0 | comp2 != 0)
 
-read_excel("data_raw/addtl.data/2022-08_Patient_metadata.xlsx") %>% 
-  rename(donorID=id, age_months=age.months, sex=Sex, bmi=BMI, 
-         FEV1_PP=`Pre-albuterol_FEV1_%_predicted`,
-         `FEV1/FVC`=`Pre-albuterol_FEV1/FVC`) %>% 
-  select(-age.years) %>% 
-  write_csv("publication/TableS1.patient.csv")
+corr <- read_csv("results/PLS/pearson.correlation.csv") %>% 
+  mutate(SPLS_selected = ifelse(X_variable %in% rownames(splsX) |
+                                  X_variable == "module_BAL_EOS_02", "Y",NA)) %>% 
+  dplyr::select(X_variable, SPLS_selected, everything()) %>% 
+  arrange(SPLS_selected)
+
+#### Table S3 ####
+write.xlsx(list("linear_model" = model.result, "genes_in_modules" = gene.in.mod,
+                "enrichment"=enrich, "correlation"=corr),
+           file = "publication/TableS3.stats.xlsx")
