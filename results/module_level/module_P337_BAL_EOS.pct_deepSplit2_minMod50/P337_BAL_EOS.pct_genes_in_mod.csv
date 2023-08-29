@@ -39,7 +39,7 @@ ENSG00000007968,8,protein_coding,E2F2,08,pink
 ENSG00000008056,2,protein_coding,SYN1,02,blue
 ENSG00000008083,3,protein_coding,JARID2,03,brown
 ENSG00000008118,1,protein_coding,CAMK1G,01,turquoise
-ENSG00000008130,4,protein_coding,"NADK",04,yellow
+ENSG00000008130,4,protein_coding,NADK,04,yellow
 ENSG00000008277,2,protein_coding,ADAM22,02,blue
 ENSG00000008405,7,protein_coding,CRY1,07,black
 ENSG00000008438,1,protein_coding,PGLYRP1,01,turquoise
@@ -456,7 +456,7 @@ ENSG00000101842,2,protein_coding,VSIG1,02,blue
 ENSG00000101945,4,protein_coding,SUV39H1,04,yellow
 ENSG00000102003,5,protein_coding,SYP,05,green
 ENSG00000102007,5,protein_coding,PLP2,05,green
-ENSG00000102030,5,protein_coding,"NAA10",05,green
+ENSG00000102030,5,protein_coding,NAA10,05,green
 ENSG00000102034,2,protein_coding,ELF4,02,blue
 ENSG00000102096,1,protein_coding,PIM2,01,turquoise
 ENSG00000102145,1,protein_coding,GATA1,01,turquoise
@@ -881,7 +881,7 @@ ENSG00000122224,1,protein_coding,LY9,01,turquoise
 ENSG00000122254,1,protein_coding,HS3ST2,01,turquoise
 ENSG00000122257,1,protein_coding,RBBP6,01,turquoise
 ENSG00000122359,4,protein_coding,ANXA11,04,yellow
-ENSG00000122390,4,protein_coding,"NAA60",04,yellow
+ENSG00000122390,4,protein_coding,NAA60,04,yellow
 ENSG00000122482,3,protein_coding,ZNF644,03,brown
 ENSG00000122545,2,protein_coding,SEPT7,02,blue
 ENSG00000122547,1,protein_coding,EEPD1,01,turquoise
@@ -1053,7 +1053,7 @@ ENSG00000131236,4,protein_coding,CAP1,04,yellow
 ENSG00000131242,2,protein_coding,RAB11FIP4,02,blue
 ENSG00000131323,1,protein_coding,TRAF3,01,turquoise
 ENSG00000131378,4,protein_coding,RFTN1,04,yellow
-ENSG00000131400,1,protein_coding,"NAPSA",01,turquoise
+ENSG00000131400,1,protein_coding,NAPSA,01,turquoise
 ENSG00000131470,1,protein_coding,PSMC3IP,01,turquoise
 ENSG00000131503,1,protein_coding,ANKHD1,01,turquoise
 ENSG00000131508,5,protein_coding,UBE2D2,05,green
@@ -1085,7 +1085,7 @@ ENSG00000132718,0,protein_coding,SYT11,00,grey
 ENSG00000132744,5,protein_coding,ACY3,05,green
 ENSG00000132749,2,protein_coding,MTL5,02,blue
 ENSG00000132773,4,protein_coding,TOE1,04,yellow
-ENSG00000132780,8,protein_coding,"NASP",08,pink
+ENSG00000132780,8,protein_coding,NASP,08,pink
 ENSG00000132819,1,protein_coding,RBM38,01,turquoise
 ENSG00000132825,4,protein_coding,PPP1R3D,04,yellow
 ENSG00000132849,3,protein_coding,INADL,03,brown
@@ -1331,7 +1331,7 @@ ENSG00000141469,2,protein_coding,SLC14A1,02,blue
 ENSG00000141510,5,protein_coding,TP53,05,green
 ENSG00000141526,5,protein_coding,SLC16A3,05,green
 ENSG00000141556,7,protein_coding,TBCD,07,black
-ENSG00000141562,4,protein_coding,"NARF",04,yellow
+ENSG00000141562,4,protein_coding,NARF,04,yellow
 ENSG00000141564,0,protein_coding,RPTOR,00,grey
 ENSG00000141655,1,protein_coding,TNFRSF11A,01,turquoise
 ENSG00000141682,6,protein_coding,PMAIP1,06,red
@@ -1480,7 +1480,7 @@ ENSG00000148335,5,protein_coding,NTMT1,05,green
 ENSG00000148362,5,protein_coding,C9orf142,05,green
 ENSG00000148396,3,protein_coding,SEC16A,03,brown
 ENSG00000148400,2,protein_coding,NOTCH1,02,blue
-ENSG00000148411,3,protein_coding,"NACC2",03,brown
+ENSG00000148411,3,protein_coding,NACC2,03,brown
 ENSG00000148426,3,protein_coding,PROSER2,03,brown
 ENSG00000148459,2,protein_coding,PDSS1,02,blue
 ENSG00000148516,1,protein_coding,ZEB1,01,turquoise
@@ -1713,7 +1713,7 @@ ENSG00000160783,5,protein_coding,PMF1,05,green
 ENSG00000160791,1,protein_coding,CCR5,01,turquoise
 ENSG00000160796,1,protein_coding,NBEAL2,01,turquoise
 ENSG00000160856,3,protein_coding,FCRL3,03,brown
-ENSG00000160877,2,protein_coding,"NACC1",02,blue
+ENSG00000160877,2,protein_coding,NACC1,02,blue
 ENSG00000160888,1,protein_coding,IER2,01,turquoise
 ENSG00000160953,2,protein_coding,MUM1,02,blue
 ENSG00000160957,8,protein_coding,RECQL4,08,pink
@@ -1727,7 +1727,7 @@ ENSG00000161217,7,protein_coding,PCYT1A,07,black
 ENSG00000161405,6,protein_coding,IKZF3,06,red
 ENSG00000161526,4,protein_coding,SAP30BP,04,yellow
 ENSG00000161618,6,protein_coding,ALDH16A1,06,red
-ENSG00000161653,0,protein_coding,"NAGS",00,grey
+ENSG00000161653,0,protein_coding,NAGS,00,grey
 ENSG00000161682,5,protein_coding,FAM171A2,05,green
 ENSG00000161714,1,protein_coding,PLCD3,01,turquoise
 ENSG00000161800,8,protein_coding,RACGAP1,08,pink
@@ -2431,7 +2431,7 @@ ENSG00000185658,7,protein_coding,BRWD1,07,black
 ENSG00000185669,2,protein_coding,SNAI3,02,blue
 ENSG00000185697,2,protein_coding,MYBL1,02,blue
 ENSG00000185811,3,protein_coding,IKZF1,03,brown
-ENSG00000185818,2,protein_coding,"NAT8L",02,blue
+ENSG00000185818,2,protein_coding,NAT8L,02,blue
 ENSG00000185838,4,protein_coding,GNB1L,04,yellow
 ENSG00000185885,6,protein_coding,IFITM1,06,red
 ENSG00000185897,1,protein_coding,FFAR3,01,turquoise
@@ -2660,7 +2660,7 @@ ENSG00000205268,7,protein_coding,PDE7A,07,black
 ENSG00000205336,1,protein_coding,ADGRG1,01,turquoise
 ENSG00000205420,2,protein_coding,KRT6A,02,blue
 ENSG00000205426,2,protein_coding,KRT81,02,blue
-ENSG00000205531,1,protein_coding,"NAP1L4",01,turquoise
+ENSG00000205531,1,protein_coding,NAP1L4,01,turquoise
 ENSG00000205581,2,protein_coding,HMGN1,02,blue
 ENSG00000205659,1,protein_coding,LIN52,01,turquoise
 ENSG00000205927,1,protein_coding,OLIG2,01,turquoise
@@ -2729,7 +2729,7 @@ ENSG00000241106,1,protein_coding,HLA-DOB,01,turquoise
 ENSG00000241973,7,protein_coding,PI4KA,07,black
 ENSG00000242732,2,protein_coding,RGAG4,02,blue
 ENSG00000243279,4,protein_coding,PRAF2,04,yellow
-ENSG00000243477,4,protein_coding,"NAT6",04,yellow
+ENSG00000243477,4,protein_coding,NAT6,04,yellow
 ENSG00000243725,5,protein_coding,TTC4,05,green
 ENSG00000243927,5,protein_coding,MRPS6,05,green
 ENSG00000244038,5,protein_coding,DDOST,05,green
@@ -2738,7 +2738,7 @@ ENSG00000244405,1,protein_coding,ETV5,01,turquoise
 ENSG00000244486,6,protein_coding,SCARF2,06,red
 ENSG00000244734,2,protein_coding,HBB,02,blue
 ENSG00000248905,1,protein_coding,FMN1,01,turquoise
-ENSG00000249437,3,protein_coding,"NAIP",03,brown
+ENSG00000249437,3,protein_coding,NAIP,03,brown
 ENSG00000249992,4,protein_coding,TMEM158,04,yellow
 ENSG00000250312,3,protein_coding,ZNF718,03,brown
 ENSG00000253250,2,protein_coding,C8orf88,02,blue
@@ -2769,7 +2769,7 @@ ENSG00000270629,5,protein_coding,NBPF14,05,green
 ENSG00000272398,3,protein_coding,CD24,03,brown
 ENSG00000272752,2,protein_coding,STAG3L5P-PVRIG2P-PILRB,02,blue
 ENSG00000273802,2,protein_coding,HIST1H2BG,02,blue
-ENSG00000274180,4,protein_coding,"NATD1",04,yellow
+ENSG00000274180,4,protein_coding,NATD1,04,yellow
 ENSG00000274736,5,protein_coding,CCL23,05,green
 ENSG00000274997,5,protein_coding,HIST1H2AH,05,green
 ENSG00000276043,8,protein_coding,UHRF1,08,pink

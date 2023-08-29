@@ -172,7 +172,7 @@ ENSG00000130816,1,protein_coding,DNMT1,01,turquoise
 ENSG00000130830,1,protein_coding,MPP1,01,turquoise
 ENSG00000131203,1,protein_coding,IDO1,01,turquoise
 ENSG00000132514,1,protein_coding,CLEC10A,01,turquoise
-ENSG00000132780,1,protein_coding,"NASP",01,turquoise
+ENSG00000132780,1,protein_coding,NASP,01,turquoise
 ENSG00000133056,0,protein_coding,PIK3C2B,00,grey
 ENSG00000133216,1,protein_coding,EPHB2,01,turquoise
 ENSG00000133561,1,protein_coding,GIMAP6,01,turquoise
@@ -411,7 +411,7 @@ ENSG00000198435,1,protein_coding,NRARP,01,turquoise
 ENSG00000204103,1,protein_coding,MAFB,01,turquoise
 ENSG00000204131,1,protein_coding,NHSL2,01,turquoise
 ENSG00000204267,1,protein_coding,TAP2,01,turquoise
-ENSG00000205531,1,protein_coding,"NAP1L4",01,turquoise
+ENSG00000205531,1,protein_coding,NAP1L4,01,turquoise
 ENSG00000206561,1,protein_coding,COLQ,01,turquoise
 ENSG00000213024,1,protein_coding,NUP62,01,turquoise
 ENSG00000221866,1,protein_coding,PLXNA4,01,turquoise
@@ -421,7 +421,7 @@ ENSG00000239961,1,protein_coding,LILRA4,01,turquoise
 ENSG00000239998,1,protein_coding,LILRA2,01,turquoise
 ENSG00000244165,1,protein_coding,P2RY11,01,turquoise
 ENSG00000248905,1,protein_coding,FMN1,01,turquoise
-ENSG00000249437,1,protein_coding,"NAIP",01,turquoise
+ENSG00000249437,1,protein_coding,NAIP,01,turquoise
 ENSG00000249992,1,protein_coding,TMEM158,01,turquoise
 ENSG00000257335,1,protein_coding,MGAM,01,turquoise
 ENSG00000258227,1,protein_coding,CLEC5A,01,turquoise

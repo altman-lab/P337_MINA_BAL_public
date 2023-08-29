@@ -1,0 +1,516 @@
+---
+title: "P337: Differential protein analysis"
+subtitle: "Bronchial lavage (BAL) pre/post allergen challenge"
+author: "Kim Dill-McFarland, kadm@uw.edu"
+output:
+  html_document:
+    toc: yes
+    toc_depth: 4
+    toc_float:
+      collapsed: no
+date: "version `r format(Sys.time(), '%B %d, %Y')`"
+editor_options: 
+  chunk_output_type: console
+---
+
+# Background
+
+The purpose of this workflow is to identify differentially abundant proteins in BAL.
+
+# Setup
+Load packages
+
+```{r message=FALSE, warning=FALSE}
+# Data manipulation and figures
+library(tidyverse)
+    # Multi-panel figures for ggplot
+    library(cowplot)
+
+#Define ggplot colors
+logFC.cols <- c("Down, FDR < 0.5"="lightblue",
+                "Down, FDR < 0.2"="blue",
+                "Down, FDR < 0.05"="darkblue",
+                "Down, FDR < 0.01"="blue",
+                "Down, FDR < 0.001"="lightblue",
+                "NS"="grey",
+                "Up, FDR < 0.5"="pink",
+                "Up, FDR < 0.2"="red",
+                "Up, FDR < 0.05"="darkred",
+                "Up, FDR < 0.01"="red",
+                "Up, FDR < 0.001"="pink")
+# Print tty table to knit file
+library(knitr)
+library(kableExtra)
+options(knitr.kable.NA = '')
+```
+
+Set seed
+
+```{r}
+set.seed(4389)
+```
+
+Scripts
+
+```{r}
+#Extract pvalues from limma output
+source("https://raw.githubusercontent.com/kdillmcfarland/R_bioinformatic_scripts/master/limma.extract.pval.R")
+#Reverse %in%
+`%notin%` <- Negate(`%in%`)
+```
+
+# Load data
+
+```{r}
+#Load data
+multip <- read_csv("data_raw/addtl.data/P337_BAL.multiplex.csv") %>% 
+  #Correct error
+  rename(FGF2_V4=TGF2_V4) %>% 
+  pivot_longer(-ptID) %>% 
+  separate(name, into = c("name","visit"), remove = FALSE) %>% 
+  mutate(name_new = paste(ptID,visit,sep="_")) %>% 
+  select(-ptID,-visit) %>% 
+  mutate(value=log10(value)) %>% 
+  pivot_wider(names_from = name_new) %>% 
+  column_to_rownames("name")
+
+attach("data_clean/P337_BAL_data.RData")
+meta <- data.frame(libID=colnames(multip)) %>% 
+  separate(libID, into = c("ptID","visit"), remove = FALSE) %>% 
+  inner_join(dat.BAL.abund.norm.voom$targets %>% 
+              select(donorID, visit, age_mo, race, sex, EOS.pct:Epi.pct) %>% 
+              distinct() %>% 
+              rename(ptID=donorID)) %>% 
+  mutate(age_yrs = age_mo/12)
+
+multip.subset <- multip %>% 
+  select(all_of(meta$libID))
+
+dat <- list()
+dat$targets <- meta
+dat$E <- multip.subset
+```
+
+This includes in the following samples.
+
+```{r echo=FALSE}
+meta %>% 
+  count(visit) %>% 
+  
+  kable(align="c", caption="Total donors") %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+```
+
+# PCA (proteins)
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, fig.height=4}
+# Calculate PCA
+PCA <- as.data.frame(dat$E) %>% 
+  t() %>% 
+  prcomp()
+
+PC1.label <- paste("PC1 (", summary(PCA)$importance[2,1]*100, "%)", sep="")
+PC2.label <-paste("PC2 (", summary(PCA)$importance[2,2]*100, "%)", sep="")
+
+# Extract PC values
+PCA.dat <- as.data.frame(PCA$x) %>% 
+  rownames_to_column("libID") %>%
+  # Select PCs
+  dplyr::select(libID, PC1:PC3) %>% 
+  # Merge with metadata
+  left_join(dat$targets, by="libID")
+
+PCA <- ggplot(PCA.dat, aes(PC1, PC2)) +
+      geom_point(aes(color=visit),
+                      size=3) +
+      #Beautify
+      theme_classic() +
+      labs(x=PC1.label, y=PC2.label, 
+           title="BAL\nlog10 multiplex protein abundance") +
+      coord_fixed(ratio=1) +
+      guides(color=guide_legend(title.position="top", 
+                                title.hjust = 0.5))
+
+
+PCA2 <- ggplot(PCA.dat, aes(PC1, PC2, color=ptID)) +
+      geom_point(size=3) +
+      #Beautify
+      theme_classic() +
+      labs(x=PC1.label, y=PC2.label, 
+           title="BAL\nlog10 multiplex protein abundance") +
+      coord_fixed(ratio=1)
+
+PCA
+PCA2
+
+dir.create("figs/", showWarnings = FALSE)
+ggsave("figs/PCA_P337_BAL_protein.png", 
+       plot_grid(PCA, PCA2, align = "hv", ncol=1),
+       height=7, width=5)
+```
+
+# Define significant proteins
+## Linear model: visit
+
+```{r}
+# Define model
+model.visit <- model.matrix(~ visit, data=dat$targets)
+  colnames(model.visit) <- c("(Intercept)", "visit")
+  
+#block by donor
+consensus.corr <- duplicateCorrelation(
+                    dat$E,
+                    model.visit,
+  block=dat$targets$ptID)$consensus.correlation
+  
+consensus.corr
+  
+# Fit model to transformed count data. Calculate eBayes
+efitQW <- eBayes(
+            lmFit(dat$E, model.visit,
+                  block=dat$targets$ptID,
+                  correlation=consensus.corr))
+```
+
+```{r warning=FALSE, message=FALSE}
+#Extract p-values from results
+extract.pval(model=model.visit,
+             voom.dat=dat$E, 
+             eFit=efitQW, 
+             name="P337_BAL_protein_visit",
+             summary=TRUE,
+             contrasts=FALSE,
+             FC.group = TRUE)
+
+#Write to disk
+dir.create(path="results/protein_level/", 
+           showWarnings = FALSE, recursive = TRUE)
+write_csv(P337_BAL_protein_visit, 
+          file = "results/protein_level/P337_BAL_protein_visit.csv")
+```
+
+### Summarize gene model
+
+```{r echo=FALSE}
+P337_BAL_protein_visit.summ %>% 
+  filter(group != "total (nonredundant)") %>% 
+
+  kable(align=c("l","l","c","c","c","c","c","c"),
+        col.names = c("Variable", "Fold change",
+                      "0.05", "0.1", "0.2","0.3","0.4","0.5")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE) %>% 
+  add_header_above(c(" "=2, "Genes with FDR <"=6))
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=9}
+P337_BAL_protein_visit %>%  
+  filter(group != "(Intercept)") %>% 
+  mutate(col.group = ifelse(adj.P.Val <= 0.05 & FC.group=="up", 
+                            "Up, FDR < 0.05",
+                     ifelse(adj.P.Val <= 0.05 & FC.group=="down", 
+                            "Down, FDR < 0.05",
+                     ifelse(adj.P.Val <= 0.2 & FC.group=="up", 
+                            "Up, FDR < 0.2",
+                     ifelse(adj.P.Val <= 0.2 & FC.group=="down", 
+                            "Down, FDR < 0.2",
+                     ifelse(adj.P.Val <= 0.5 & FC.group=="up", 
+                            "Up, FDR < 0.5",
+                     ifelse(adj.P.Val <= 0.5 & FC.group=="down", 
+                            "Down, FDR < 0.5",
+                            "NS"))))))) %>%
+  arrange(group,-adj.P.Val) %>% 
+  
+ggplot(aes(x=AveExpr, y=logFC, color=col.group)) +
+  geom_point(size=2) +
+  scale_color_manual(values=logFC.cols) +
+  facet_grid(~group, scales = "free_y")+
+  theme_classic() +
+  labs(x="Average log CPM", y="Log fold change", color="") +
+  guides(color = guide_legend(reverse = TRUE)) +
+  theme(text = element_text(size=18),
+        legend.position = "bottom") +
+  guides(color=guide_legend(nrow=3, byrow=TRUE))
+```
+
+### Select visit significant genes
+
+```{r}
+#Maximum fdr for visit genes to be included in modules
+visit.fdr.cutoff <- 0.3
+```
+
+```{r}
+#Subset data to visit signif genes
+##List genes
+visit.signif <- P337_BAL_protein_visit %>% 
+  filter(adj.P.Val <= visit.fdr.cutoff & group == "visit") %>% 
+  select(geneName) %>% unlist(use.names = FALSE)
+  
+##Subset expression data
+dat.visit <- dat
+
+dat.visit$E <- as.data.frame(dat.visit$E) %>% 
+  rownames_to_column() %>% 
+  filter(rowname %in% visit.signif) %>% 
+  column_to_rownames()
+```
+
+## Linear model: covariates
+
+```{r age}
+# Define model
+model.age <- model.matrix(~ visit+age_yrs, data=dat$targets)
+  colnames(model.age) <- c("(Intercept)", "visit", "age")
+  
+#block by donor
+consensus.corr <- duplicateCorrelation(
+                    dat$E,
+                    model.age,
+  block=dat$targets$ptID)$consensus.correlation
+  
+consensus.corr
+  
+# Fit model to transformed count data. Calculate eBayes
+efitQW <- eBayes(
+            lmFit(dat$E, model.age,
+                  block=dat$targets$ptID,
+                  correlation=consensus.corr))
+
+#Extract p-values from results
+extract.pval(model=model.age,
+             voom.dat=dat$E, 
+             eFit=efitQW, 
+             name="P337_BAL_protein_age",
+             summary=TRUE,
+             contrasts=FALSE,
+             FC.group = TRUE)
+```
+
+```{r sex}
+# Define model
+model.sex <- model.matrix(~ visit+sex, data=dat$targets)
+  colnames(model.sex) <- c("(Intercept)", "visit", "sex")
+  
+#block by donor
+consensus.corr <- duplicateCorrelation(
+                    dat$E,
+                    model.sex,
+  block=dat$targets$ptID)$consensus.correlation
+  
+consensus.corr
+  
+# Fit model to transformed count data. Calculate eBayes
+efitQW <- eBayes(
+            lmFit(dat$E, model.sex,
+                  block=dat$targets$ptID,
+                  correlation=consensus.corr))
+
+#Extract p-values from results
+extract.pval(model=model.sex,
+             voom.dat=dat$E, 
+             eFit=efitQW, 
+             name="P337_BAL_protein_sex",
+             summary=TRUE,
+             contrasts=FALSE,
+             FC.group = TRUE)
+```
+
+### Summarize gene model
+
+```{r echo=FALSE}
+bind_rows(P337_BAL_protein_age.summ,P337_BAL_protein_sex.summ) %>% 
+  filter(group != "total (nonredundant)") %>% 
+
+  kable(align=c("l","l","c","c","c","c","c","c"),
+        col.names = c("Variable", "Fold change",
+                      "0.05", "0.1", "0.2","0.3","0.4","0.5")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE) %>% 
+  add_header_above(c(" "=2, "Genes with FDR <"=6))
+```
+
+### Select visit significant genes
+
+```{r}
+#Maximum fdr for visit genes to be included in modules
+visit.fdr.cutoff <- 0.3
+```
+
+```{r}
+#Subset data to visit signif genes
+##List genes
+visit.signif <- P337_BAL_protein_visit %>% 
+  filter(adj.P.Val <= visit.fdr.cutoff & group == "visit") %>% 
+  select(geneName) %>% unlist(use.names = FALSE)
+  
+##Subset expression data
+dat.visit <- dat
+
+dat.visit$E <- as.data.frame(dat.visit$E) %>% 
+  rownames_to_column() %>% 
+  filter(rowname %in% visit.signif) %>% 
+  column_to_rownames()
+```
+
+## Linear model: Cell percentages
+
+Each sample contains eosinophil (EOS), epithelial (Epi), lymphocyte (LYM), monocyte (MONO), and neutrophil (NEUT) cells to 100%. 
+
+```{r echo=FALSE}
+#Plot cell percentages per sample
+dat.visit$targets %>% 
+  select(ptID, visit, EOS.pct:Epi.pct) %>% 
+  pivot_longer(-c(ptID:visit)) %>% 
+  
+  ggplot(aes(x=name, y=value)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(height = 0) +
+  theme_classic() +
+  facet_wrap(~visit, scales="free") +
+  labs(x="", y="Percent of total cells")
+```
+
+Here, we create targeted modules for EOS and NEUT cells.
+
+#### EOS
+
+```{r}
+# Define model
+model <- model.matrix(~EOS.pct, data=dat.visit$targets)
+  colnames(model) <- c("(Intercept)", "EOS.pct")
+  
+#Block by donor
+consensus.corr <- duplicateCorrelation(
+                    dat.visit$E,
+                    model,
+  block=dat.visit$targets$ptID)$consensus.correlation
+  
+consensus.corr
+  
+# Fit model to transformed count data. Calculate eBayes
+efitQW <- eBayes(
+            lmFit(dat.visit$E, model,
+                  block=dat.visit$targets$ptID,
+                  correlation=consensus.corr))
+```
+
+```{r warning=FALSE, message=FALSE}
+#Extract p-values from results
+extract.pval(model=model,
+             voom.dat=dat.visit$E, 
+             eFit=efitQW, 
+             name="P337_BAL_protein_EOS",
+             summary=TRUE,
+             contrasts=FALSE,
+             FC.group = TRUE)
+
+#Write to disk
+write_csv(P337_BAL_protein_EOS,
+          file = "results/protein_level/P337_BAL_protein_EOS.csv")
+```
+
+#### NEUT
+
+```{r}
+# Define model
+model <- model.matrix(~NEUT.pct, data=dat.visit$targets)
+  colnames(model) <- c("(Intercept)", "NEUT.pct")
+  
+#Block by donor
+consensus.corr <- duplicateCorrelation(
+                    dat.visit$E,
+                    model,
+  block=dat.visit$targets$ptID)$consensus.correlation
+  
+consensus.corr
+  
+# Fit model to transformed count data. Calculate eBayes
+efitQW <- eBayes(
+            lmFit(dat.visit$E, model,
+                  block=dat.visit$targets$ptID,
+                  correlation=consensus.corr))
+
+```
+
+```{r warning=FALSE, message=FALSE}
+#Extract p-values from results
+extract.pval(model=model,
+             voom.dat=dat.visit$E, 
+             eFit=efitQW, 
+             name="P337_BAL_protein_NEUT",
+             summary=TRUE,
+             contrasts=FALSE,
+             FC.group = TRUE)
+
+#Write to disk
+write_csv(P337_BAL_protein_NEUT,
+          file = "results/protein_level/P337_BAL_protein_NEUT.csv")
+```
+
+### Summarize cell percentage models
+
+```{r echo=FALSE, warning=FALSE}
+#Combine cell pct results
+P337_prot_cells <- data.frame()
+
+for(pval in ls(pattern = "[EOS|NEUT]$")){
+  pval.temp <- get(pval)
+  P337_prot_cells <- bind_rows(P337_prot_cells, pval.temp)
+}
+
+P337_prot_cells.summ <- data.frame()
+
+for(summary in ls(pattern = "[EOS|NEUT].summ")){
+  summ.temp <- get(summary) %>% 
+    filter(group != "total (nonredundant)")
+  P337_prot_cells.summ <- bind_rows(P337_prot_cells.summ, summ.temp)
+}
+```
+
+```{r echo=FALSE}
+P337_prot_cells.summ %>% 
+  filter(FC.group == "up" & group != "visit") %>% 
+  
+  kable(align=c("l","l","c","c","c","c","c","c"),
+        col.names = c("Variable", "Fold change",
+                      "0.05", "0.1", "0.2","0.3","0.4","0.5")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE) %>% 
+  add_header_above(c(" "=2, "Genes with FDR <"=6))
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=9}
+P337_prot_cells %>%  
+  filter(group %notin% c("visit","(Intercept)") ) %>% 
+  mutate(col.group = ifelse(adj.P.Val <= 0.05 & FC.group=="up", 
+                            "Up, FDR < 0.05",
+                     ifelse(adj.P.Val <= 0.05 & FC.group=="down", 
+                            "Down, FDR < 0.05",
+                     ifelse(adj.P.Val <= 0.2 & FC.group=="up", 
+                            "Up, FDR < 0.2",
+                     ifelse(adj.P.Val <= 0.2 & FC.group=="down", 
+                            "Down, FDR < 0.2",
+                     ifelse(adj.P.Val <= 0.5 & FC.group=="up", 
+                            "Up, FDR < 0.5",
+                     ifelse(adj.P.Val <= 0.5 & FC.group=="down", 
+                            "Down, FDR < 0.5",
+                            "NS"))))))) %>%
+  arrange(group,-adj.P.Val) %>% 
+  
+ggplot(aes(x=AveExpr, y=logFC, color=col.group)) +
+  geom_point(size=2) +
+  scale_color_manual(values=logFC.cols) +
+  facet_grid(~group, scales = "free_y")+
+  theme_classic() +
+  labs(x="Average log CPM", y="Log fold change", color="") +
+  guides(color = guide_legend(reverse = TRUE)) +
+  theme(text = element_text(size=18),
+        legend.position = "bottom") +
+  guides(color=guide_legend(nrow=3, byrow=TRUE))
+```
+
+# R session
+
+```{r}
+sessionInfo()
+```
+
+***

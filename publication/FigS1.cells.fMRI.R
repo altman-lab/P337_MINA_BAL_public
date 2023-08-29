@@ -50,7 +50,7 @@ p1 <- dat.BAL.abund.norm.voom$targets %>%
   labs(x="Segmented bronchial provocation with allergen (SBP-Ag)",
        y="Cell %", color="Post - Pre\nchange") +
   facet_grid(~cell, scales="free_x") +
-  scale_color_manual(values=c("down"="#74add1","up"="#d73027"))
+  scale_color_manual(values=c("down"="#74add1","up"="#FF8679"))
 # p1
 
 #### fMRI ####

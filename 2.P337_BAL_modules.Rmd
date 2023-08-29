@@ -74,6 +74,7 @@ source("https://raw.githubusercontent.com/kdillmcfarland/R_bioinformatic_scripts
 ```{r}
 #Load data
 load("data_clean/P337_BAL_data.RData")
+dat.BAL.abund.norm.voom$targets$age_yrs <- dat.BAL.abund.norm.voom$targets$age_mo/12
 ```
 
 This includes in the following samples.
@@ -699,6 +700,9 @@ extract.pval(model=model.visit,
              summary=TRUE,
              contrasts=FALSE,
              FC.group = TRUE)
+
+write_csv(P337_BAL_module_visit,
+          file="results/module_level/P337_BAL_mod_visit.csv")
 ```
 
 ### Summarize module model
@@ -741,6 +745,79 @@ ggplot(aes(x=AveExpr, y=logFC, color=col.group, shape=group)) +
   guides(color = guide_legend(reverse = TRUE)) +
   theme(text = element_text(size=18)) +
   guides(color=guide_legend(nrow=3, byrow=TRUE))
+```
+
+## Linear model: covariates
+
+```{r age}
+# Define model
+model.age <- model.matrix(~ visit+age_yrs, data=dat.BAL.abund.norm.voom$targets)
+  colnames(model.age) <- c("(Intercept)", "visit", "age")
+  
+#block by donor
+consensus.corr <- duplicateCorrelation(
+                    mod.voom.format,
+                    model.age,
+  block=dat.BAL.abund.norm.voom$targets$donorID)$consensus.correlation
+  
+consensus.corr
+  
+# Fit model to transformed count data. Calculate eBayes
+efitQW <- eBayes(
+            lmFit(mod.voom.format, model.age,
+                  block=dat.BAL.abund.norm.voom$targets$donorID,
+                  correlation=consensus.corr))
+
+#Extract p-values from results
+extract.pval(model=model.age,
+             voom.dat=mod.voom.format, 
+             eFit=efitQW, 
+             name="P337_BAL_module_age",
+             summary=TRUE,
+             contrasts=FALSE,
+             FC.group = TRUE)
+```
+
+```{r sex}
+# Define model
+model.sex <- model.matrix(~ visit+sex, data=dat.BAL.abund.norm.voom$targets)
+  colnames(model.sex) <- c("(Intercept)", "visit", "sex")
+  
+#block by donor
+consensus.corr <- duplicateCorrelation(
+                    mod.voom.format,
+                    model.sex,
+  block=dat.BAL.abund.norm.voom$targets$donorID)$consensus.correlation
+  
+consensus.corr
+  
+# Fit model to transformed count data. Calculate eBayes
+efitQW <- eBayes(
+            lmFit(mod.voom.format, model.sex,
+                  block=dat.BAL.abund.norm.voom$targets$ptID,
+                  correlation=consensus.corr))
+
+#Extract p-values from results
+extract.pval(model=model.sex,
+             voom.dat=mod.voom.format, 
+             eFit=efitQW, 
+             name="P337_BAL_module_sex",
+             summary=TRUE,
+             contrasts=FALSE,
+             FC.group = TRUE)
+```
+
+### Summarize module models
+
+```{r echo=FALSE}
+bind_rows(P337_BAL_module_age.summ,P337_BAL_module_sex.summ) %>% 
+  filter(group != "total (nonredundant)") %>% 
+
+  kable(align=c("l","l","c","c","c","c","c","c"),
+        col.names = c("Variable", "Fold change",
+                      "0.05", "0.1", "0.2","0.3","0.4","0.5")) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE) %>% 
+  add_header_above(c(" "=2, "Genes with FDR <"=6))
 ```
 
 ## Module plots

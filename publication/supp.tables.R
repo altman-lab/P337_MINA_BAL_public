@@ -12,6 +12,7 @@ meta1 <- read_excel("data_raw/addtl.data/2022-08_Patient_metadata.xlsx") %>%
   select(-age.years)
 
 #### Library metadata ####
+attach("data_clean/P337_BAL_data.RData")
 meta2 <- dat.BAL.abund.norm.voom$targets %>% 
   select(libID, norm.factors, 
          donorID, visit, group, flow_cell,
@@ -21,9 +22,9 @@ meta2 <- dat.BAL.abund.norm.voom$targets %>%
          EOS_percent=EOS.pct, NEUT_percent=NEUT.pct) %>% 
   mutate(visit = recode(visit, "V4"="pre", "V5"="post"))
 
-#### Table S1 ####
+#### Table S2 ####
 write.xlsx(list("patient"=meta1, "rnaseq"=meta2), 
-           file = "publication/TableS1.metadata.xlsx")
+           file = "publication/TableS2.metadata.xlsx")
 
 #### Log2 CPM genes ####
 attach("data_clean/P337_BAL_data.RData")
@@ -77,9 +78,9 @@ neuro <- read_excel(sheet="T2",
   select(donorID, visit, everything(), -idnum) %>% 
   arrange(donorID, visit) 
 
-##### Table S2 ####
+##### Table S1 ####
 write.xlsx(list("gene"=gene, "protein"=elisa, "module"=mod, "fMRI"=neuro), 
-           file = "publication/TableS2.data.xlsx")
+           file = "publication/TableS1.data.xlsx")
 
 #### Gene linear models ####
 gene.visit <- read_csv("results/gene_level/P337_BAL_gene_visit.csv") %>% 
@@ -99,6 +100,13 @@ gene.NEUT <- read_csv("results/gene_level/P337_BAL_gene_NEUT.csv") %>%
   #Rename specific to this model
   select(geneName, logFC, adj.P.Val) %>% 
   rename(NEUT_logFC=logFC, NEUT_FDR=adj.P.Val)
+
+mod.visit <- read_csv("results/module_level/P337_BAL_mod_visit.csv") %>% 
+  filter(group == "visit") %>% 
+  #Rename specific to this model
+  select(geneName, logFC, adj.P.Val) %>% 
+  rename(visit_logFC=logFC, visit_FDR=adj.P.Val, module=geneName) %>% 
+  mutate(module = gsub("P337_BAL_|.pct", "", module))
 
 #Module assignment
 mod.key <- mod.genes %>% 
@@ -165,5 +173,45 @@ corr <- read_csv("results/PLS/pearson.correlation.csv") %>%
 
 #### Table S3 ####
 write.xlsx(list("linear_model" = model.result, "genes_in_modules" = gene.in.mod,
+                "module_linear_model"= mod.visit,
                 "enrichment"=enrich, "correlation"=corr),
-           file = "publication/TableS3.stats.xlsx")
+           file = "publication/TableS3.gene.stats.xlsx")
+
+#### Protein linear models ####
+#### Gene linear models ####
+prot.visit <- read_csv("results/protein_level/P337_BAL_protein_visit.csv") %>% 
+  filter(group == "visit") %>% 
+  #Rename specific to this model
+  select(geneName, logFC, adj.P.Val) %>% 
+  rename(visit_logFC=logFC, visit_FDR=adj.P.Val)
+
+prot.EOS <- read_csv("results/protein_level/P337_BAL_protein_EOS.csv") %>% 
+  filter(group == "EOS.pct") %>% 
+  #Rename specific to this model
+  select(geneName, logFC, adj.P.Val) %>% 
+  rename(EOS_logFC=logFC, EOS_FDR=adj.P.Val)
+
+prot.NEUT <- read_csv("results/protein_level/P337_BAL_protein_NEUT.csv") %>% 
+  filter(group == "NEUT.pct") %>% 
+  #Rename specific to this model
+  select(geneName, logFC, adj.P.Val) %>% 
+  rename(NEUT_logFC=logFC, NEUT_FDR=adj.P.Val)
+
+model.result2 <- full_join(prot.visit, prot.EOS) %>% 
+  full_join(prot.NEUT) %>% 
+  rename(PROTEIN=geneName)
+
+#### Table S4 ####
+write.xlsx(list("linear_model"=model.result2),
+           file = "publication/TableS4.protein.stats.xlsx")
+
+#### fMRI linear models ####
+model.result3 <- read_csv("results/fMRI/P337_fMRI_visit.csv") %>% 
+  filter(group == "visit") %>% 
+  #Rename specific to this model
+  select(geneName, logFC, adj.P.Val) %>% 
+  rename(visit_FC=logFC, visit_FDR=adj.P.Val, fMRI=geneName)
+
+#### Table S5 ####
+write.xlsx(list("linear_model"=model.result3),
+           file = "publication/TableS5.fMRI.stats.xlsx")
