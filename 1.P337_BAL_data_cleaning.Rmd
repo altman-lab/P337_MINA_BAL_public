@@ -715,7 +715,7 @@ save(dat.BAL.abund.norm.voom,
 Write counts as table.
 
 ```{r}
-write_csv(as.data.frame(dat.BAL.abund.norm.voom$E),
+write_csv(as.data.frame(dat.BAL.abund.norm.voom$E) %>% rownames_to_column("geneName"),
           "data_clean/P337_BAL_counts_voom.csv")
 ```
 
